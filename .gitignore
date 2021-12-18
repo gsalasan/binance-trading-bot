@@ -26,7 +26,7 @@ build
 data
 log
 
-.env
+#.env
 .vs
 
 
