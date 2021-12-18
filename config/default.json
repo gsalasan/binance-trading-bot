@@ -19,7 +19,7 @@
     "db": 0
   },
   "mongo": {
-    "host": "binance-mongo",
+    "host": "10.8.25.160",
     "port": 27017,
     "database": "binance-bot"
   },
