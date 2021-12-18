@@ -4,8 +4,8 @@
   "appName": "Binance Trading Bot",
   "binance": {
     "live": {
-      "apiKey": "",
-      "secretKey": ""
+      "apiKey": "71qU0Tu8UjltxQ0ce7SakEk3YmipH7DJp34Shtj1VKiQ2ZbimYrNduBMV06vl6r5",
+      "secretKey": "orrp0DEFQEao7MFGVbvqw5WpNQPtiBg0T0fWkDO8ppCWXwWpnABa2dopBkERxcJu"
     },
     "test": {
       "apiKey": "",
@@ -55,7 +55,12 @@
     "trailingTrade": {
       "enabled": true,
       "cronTime": "* * * * * *",
-      "symbols": ["BTCUSDT", "ETHUSDT", "ETHBTC", "XRPBTC"],
+      "symbols": [
+        "BTCUSDT",
+        "ETHUSDT",
+        "ETHBTC",
+        "XRPBTC"
+      ],
       "botOptions": {
         "authentication": {
           "lockList": true,
