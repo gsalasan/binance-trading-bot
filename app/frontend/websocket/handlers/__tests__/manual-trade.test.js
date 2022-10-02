@@ -4,6 +4,7 @@ describe('manual-trade.js', () => {
   let mockWebSocketServerWebSocketSend;
 
   let loggerMock;
+  let mockQueue;
 
   let mockSaveOverrideAction;
 
@@ -21,6 +22,12 @@ describe('manual-trade.js', () => {
     jest.mock('../../../../cronjob/trailingTradeHelper/common', () => ({
       saveOverrideAction: mockSaveOverrideAction
     }));
+
+    mockQueue = {
+      executeFor: jest.fn().mockResolvedValue(true)
+    };
+
+    jest.mock('../../../../cronjob/trailingTradeHelper/queue', () => mockQueue);
   });
 
   beforeEach(async () => {
@@ -53,6 +60,10 @@ describe('manual-trade.js', () => {
       },
       'The manual order received by the bot. Wait for placing the order.'
     );
+  });
+
+  it('triggers queue.executeFor', () => {
+    expect(mockQueue.executeFor).toHaveBeenCalledWith(loggerMock, 'BTCUSDT');
   });
 
   it('triggers ws.send', () => {

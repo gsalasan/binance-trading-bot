@@ -2,12 +2,12 @@ const _ = require('lodash');
 const moment = require('moment');
 const { binance, slack } = require('../../../helpers');
 const {
-  getAndCacheOpenOrdersForSymbol,
-  getAccountInfoFromAPI,
   isExceedAPILimit,
   getAPILimit,
   saveOrderStats,
-  saveOverrideAction
+  saveOverrideAction,
+  getAndCacheOpenOrdersForSymbol,
+  getAccountInfoFromAPI
 } = require('../../trailingTradeHelper/common');
 const { saveGridTradeOrder } = require('../../trailingTradeHelper/order');
 
@@ -78,8 +78,8 @@ const isAllowedTradingViewRecommendation = (logger, data) => {
     if (tradingViewIfExpires === 'do-not-buy') {
       logger.info(
         {
-          tradingViewUpdatedAt: tradingViewUpdatedAt.format(),
-          currentTime: currentTime.format()
+          tradingViewUpdatedAt: tradingViewUpdatedAt.toISOString(),
+          currentTime: currentTime.toISOString()
         },
         `TradingView data is older than ${tradingViewUseOnlyWithin} minutes. Do not buy.`
       );
@@ -93,8 +93,8 @@ const isAllowedTradingViewRecommendation = (logger, data) => {
 
     logger.info(
       {
-        tradingViewUpdatedAt: tradingViewUpdatedAt.format(),
-        currentTime: currentTime.format()
+        tradingViewUpdatedAt: tradingViewUpdatedAt.toISOString(),
+        currentTime: currentTime.toISOString()
       },
       `TradingView data is older than ${tradingViewUseOnlyWithin} minutes. Ignore TradingView recommendation.`
     );
@@ -143,7 +143,7 @@ const setMessage = (logger, rawData, processMessage) => {
 
   logger.info({ data, saveLog: true }, processMessage);
   data.buy.processMessage = processMessage;
-  data.buy.updatedAt = moment().utc();
+  data.buy.updatedAt = moment().utc().toDate();
   return data;
 };
 
@@ -169,8 +169,7 @@ const execute = async (logger, rawData) => {
     },
     symbolConfiguration: {
       symbols,
-      buy: { enabled: tradingEnabled, currentGridTradeIndex, currentGridTrade },
-      system: { checkOrderExecutePeriod }
+      buy: { enabled: tradingEnabled, currentGridTradeIndex, currentGridTrade }
     },
     action,
     quoteAssetBalance: { free: quoteAssetFreeBalance },
@@ -219,7 +218,7 @@ const execute = async (logger, rawData) => {
       symbol,
       {
         action: 'buy',
-        actionAt: moment().add(1, 'minutes').format(),
+        actionAt: moment().add(1, 'minutes').toISOString(),
         triggeredBy: 'buy-order-trading-view',
         notify: false,
         checkTradingView: true
@@ -312,11 +311,9 @@ const execute = async (logger, rawData) => {
       lotStepSizePrecision
     )
   );
-
   // If free balance is exactly same as minimum notional, then it will be failed to place the order
   // because it will be always less than minimum notional after calculating commission.
   // To avoid the minimum notional issue, add commission to free balance
-
   if (
     orgFreeBalance > parseFloat(minNotional) &&
     maxPurchaseAmount === parseFloat(minNotional)
@@ -335,21 +332,19 @@ const execute = async (logger, rawData) => {
       )
     );
   }
-
   logger.info({ orderQuantity }, 'Order quantity after commission');
 
-  if (orderQuantity * limitPrice < parseFloat(minNotional)) {
+  const orderAmount = orderQuantity * limitPrice;
+
+  if (orderAmount < parseFloat(minNotional)) {
     const processMessage =
       `Do not place a buy order for the grid trade #${humanisedGridTradeIndex} ` +
       `as not enough ${quoteAsset} ` +
       `to buy ${baseAsset} after calculating commission - Order amount: ${_.floor(
-        orderQuantity * limitPrice,
+        orderAmount,
         priceTickPrecision
       )} ${quoteAsset}, Minimum notional: ${minNotional}.`;
-    logger.info(
-      { calculatedAmount: orderQuantity * limitPrice, minNotional },
-      processMessage
-    );
+    logger.info({ calculatedAmount: orderAmount, minNotional }, processMessage);
 
     return setMessage(logger, data, processMessage);
   }
@@ -411,12 +406,10 @@ const execute = async (logger, rawData) => {
   }
 
   slack.sendMessage(
-    `${symbol} Buy Action Grid Trade #${humanisedGridTradeIndex} (${moment().format(
-      'HH:mm:ss.SSS'
-    )}): *STOP_LOSS_LIMIT*\n` +
+    `*${symbol}* Action - Buy Trade #${humanisedGridTradeIndex}: *STOP_LOSS_LIMIT*\n` +
       `- Order Params: \n` +
-      `\`\`\`${JSON.stringify(notifyMessage, undefined, 2)}\`\`\`\n` +
-      `- Current API Usage: ${getAPILimit(logger)}`
+      `\`\`\`${JSON.stringify(notifyMessage, undefined, 2)}\`\`\``,
+    { symbol, apiLimit: getAPILimit(logger) }
   );
 
   logger.info(
@@ -438,13 +431,13 @@ const execute = async (logger, rawData) => {
   // Set last buy grid order to be checked until it is executed
   await saveGridTradeOrder(logger, `${symbol}-grid-trade-last-buy-order`, {
     ...orderResult,
-    currentGridTradeIndex,
-    nextCheck: moment().add(checkOrderExecutePeriod, 'seconds').format()
+    currentGridTradeIndex
   });
 
   // Save number of open orders
   await saveOrderStats(logger, symbols);
 
+  // FIXME: If you change this comment, please refactor to use common.js:refreshOpenOrdersAndAccountInfo
   // Get open orders and update cache
   data.openOrders = await getAndCacheOpenOrdersForSymbol(logger, symbol);
   data.buy.openOrders = data.openOrders.filter(
@@ -455,15 +448,13 @@ const execute = async (logger, rawData) => {
   data.accountInfo = await getAccountInfoFromAPI(logger);
 
   slack.sendMessage(
-    `${symbol} Buy Action Grid Trade #${humanisedGridTradeIndex} Result (${moment().format(
-      'HH:mm:ss.SSS'
-    )}): *STOP_LOSS_LIMIT*\n` +
+    `*${symbol}* Buy Action Grid Trade #${humanisedGridTradeIndex} Result: *STOP_LOSS_LIMIT*\n` +
       `- Order Result: \`\`\`${JSON.stringify(
         orderResult,
         undefined,
         2
-      )}\`\`\`\n` +
-      `- Current API Usage: ${getAPILimit(logger)}`
+      )}\`\`\``,
+    { symbol, apiLimit: getAPILimit(logger) }
   );
 
   return setMessage(

@@ -11,7 +11,6 @@ const {
   handleLatest,
   handleSettingUpdate,
   handleSymbolUpdateLastBuyPrice,
-  handleSymbolDelete,
   handleSymbolSettingUpdate,
   handleSymbolSettingDelete,
   handleSymbolGridTradeDelete,
@@ -22,7 +21,8 @@ const {
   handleManualTradeAllSymbols,
   handleCancelOrder,
   handleDustTransferGet,
-  handleDustTransferExecute
+  handleDustTransferExecute,
+  handleExchangeSymbolsGet
 } = require('./handlers');
 
 const handleWarning = (logger, ws, message) => {
@@ -84,7 +84,6 @@ const configureWebSocket = async (server, funcLogger, { loginLimiter }) => {
         latest: handleLatest,
         'setting-update': handleSettingUpdate,
         'symbol-update-last-buy-price': handleSymbolUpdateLastBuyPrice,
-        'symbol-delete': handleSymbolDelete,
         'symbol-setting-update': handleSymbolSettingUpdate,
         'symbol-setting-delete': handleSymbolSettingDelete,
         'symbol-grid-trade-delete': handleSymbolGridTradeDelete,
@@ -95,7 +94,8 @@ const configureWebSocket = async (server, funcLogger, { loginLimiter }) => {
         'manual-trade-all-symbols': handleManualTradeAllSymbols,
         'cancel-order': handleCancelOrder,
         'dust-transfer-get': handleDustTransferGet,
-        'dust-transfer-execute': handleDustTransferExecute
+        'dust-transfer-execute': handleDustTransferExecute,
+        'exchange-symbols-get': handleExchangeSymbolsGet
       };
 
       if (commandMaps[payload.command] === undefined) {

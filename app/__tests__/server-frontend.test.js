@@ -11,10 +11,12 @@ describe('server-frontend', () => {
 
   let mockCompression;
   let mockCors;
+  let mockFileUpload;
 
   let mockConfigureWebServer;
   let mockConfigureWebSocket;
   let mockConfigureLocalTunnel;
+  let mockConfigureBullBoard;
 
   let mockRateLimiterRedisGet;
   let mockRateLimiterRedis;
@@ -41,6 +43,7 @@ describe('server-frontend', () => {
 
     mockCompression = jest.fn().mockReturnValue(true);
     mockCors = jest.fn().mockReturnValue(true);
+    mockFileUpload = jest.fn().mockReturnValue(true);
 
     mockRateLimiterRedisGet = jest.fn().mockReturnValue({ remainingPoints: 5 });
     mockRateLimiterRedis = jest.fn().mockImplementation(() => ({
@@ -59,6 +62,7 @@ describe('server-frontend', () => {
     mockConfigureWebServer = jest.fn().mockReturnValue(true);
     mockConfigureWebSocket = jest.fn().mockReturnValue(true);
     mockConfigureLocalTunnel = jest.fn().mockReturnValue(true);
+    mockConfigureBullBoard = jest.fn().mockReturnValue(true);
 
     mockExpressStatic = jest.fn().mockReturnValue(true);
 
@@ -79,6 +83,8 @@ describe('server-frontend', () => {
         mockCompression();
       } else if (fn.name === 'corsMiddleware') {
         mockCors();
+      } else if (fn.name === 'fileUpload') {
+        mockFileUpload();
       } else if (fn.name === 'rateLimiterMiddleware') {
         await fn(
           mockRateLimiterMiddlewareReq,
@@ -126,6 +132,10 @@ describe('server-frontend', () => {
     jest.mock('../frontend/local-tunnel/configure', () => ({
       configureLocalTunnel: mockConfigureLocalTunnel
     }));
+
+    jest.mock('../frontend/bull-board/configure', () => ({
+      configureBullBoard: mockConfigureBullBoard
+    }));
   });
 
   describe('web server', () => {
@@ -167,6 +177,13 @@ describe('server-frontend', () => {
           duration: 10800,
           blockDuration: 900
         });
+      });
+
+      it('triggers configureBullBoard', () => {
+        expect(mockConfigureBullBoard).toHaveBeenCalledWith(
+          expect.any(Object),
+          loggerMock
+        );
       });
 
       it('triggers server.listen', () => {

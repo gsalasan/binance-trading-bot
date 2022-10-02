@@ -2,8 +2,42 @@ const qs = require('qs');
 const _ = require('lodash');
 const axios = require('axios');
 const { cache } = require('../../../helpers');
+const { handleError } = require('../../../error-handler');
 
-const getInterval = interval => {
+const isTriggeredByAutoTrigger = symbolOverrideData =>
+  _.get(symbolOverrideData, 'action', '') === 'buy' &&
+  _.get(symbolOverrideData, 'triggeredBy', '') === 'auto-trigger';
+
+const getInterval = (logger, symbolConfiguration, symbolOverrideData) => {
+  const {
+    candles: { interval: candleInterval },
+    botOptions: {
+      tradingView: { interval: tradingViewInterval },
+      autoTriggerBuy: {
+        conditions: {
+          tradingView: { overrideInterval: tradingViewOverrideInterval }
+        }
+      }
+    }
+  } = symbolConfiguration;
+
+  // By default, use candle interval
+  let interval = candleInterval;
+  // If overriden data is triggered by auto-trigger and TradingView override interval is configured, then use it.
+  if (
+    isTriggeredByAutoTrigger(symbolOverrideData) &&
+    tradingViewOverrideInterval !== ''
+  ) {
+    interval = tradingViewOverrideInterval;
+    logger.info(
+      { tradingViewOverrideInterval },
+      'Use override interval because of auto-buy trigger'
+    );
+  } else if (tradingViewInterval !== '') {
+    // If TradingView interval is not empty, then use it.
+    interval = tradingViewInterval;
+  }
+
   switch (interval) {
     case '3m':
       return '5m';
@@ -77,19 +111,23 @@ const retrieveTradingView = async (logger, symbols, interval) => {
         );
 
         lastTradingView[symbol] = result;
-        cache.hset(
-          'trailing-trade-tradingview',
-          symbol,
-          JSON.stringify({
-            request: {
-              symbol,
-              screener: 'CRYPTO',
-              exchange: 'BINANCE',
-              interval
-            },
-            result
-          })
-        );
+        cache
+          .hset(
+            'trailing-trade-tradingview',
+            symbol,
+            JSON.stringify({
+              request: {
+                symbol,
+                screener: 'CRYPTO',
+                exchange: 'BINANCE',
+                interval
+              },
+              result
+            })
+          )
+          .catch(err =>
+            handleError(logger, `Cache Trading View - ${symbol}`, err)
+          );
       } else {
         logger.info(
           { symbol, data: result, saveLog },
@@ -133,24 +171,39 @@ const execute = async (funcLogger, rawData) => {
     'trailing-trade-configurations:*'
   );
 
+  const cachedOverrideData = await cache.hgetall(
+    'trailing-trade-override:',
+    'trailing-trade-override:*'
+  );
+
   const tradingViewRequests = {};
 
-  _.forIn(cachedSymbolConfigurations, (value, symbol) => {
+  // eslint-disable-next-line no-restricted-syntax
+  for (const symbol of Object.keys(cachedSymbolConfigurations)) {
     if (symbol === 'global') {
-      return;
+      // eslint-disable-next-line no-continue
+      continue;
     }
+    const value = cachedSymbolConfigurations[symbol];
 
     const symbolConfiguration = JSON.parse(value);
 
-    const {
-      candles: { interval },
-      botOptions: {
-        tradingView: { interval: tradingViewInterval }
-      }
-    } = symbolConfiguration;
+    let symbolOverrideData = {};
+    try {
+      symbolOverrideData = JSON.parse(cachedOverrideData[symbol]);
+      // eslint-disable-next-line no-empty
+    } catch (e) {}
+
+    logger.info({ symbol, symbolOverrideData }, 'Symbol override data');
 
     const finalInterval = getInterval(
-      tradingViewInterval !== '' ? tradingViewInterval : interval
+      logger,
+      symbolConfiguration,
+      symbolOverrideData
+    );
+    logger.info(
+      { symbol, symbolOverrideData, finalInterval },
+      'Determined final interval'
     );
 
     if (tradingViewRequests[finalInterval] === undefined) {
@@ -160,15 +213,13 @@ const execute = async (funcLogger, rawData) => {
       };
     }
     tradingViewRequests[finalInterval].symbols.push(symbol);
-  });
+  }
 
-  const promises = [];
+  logger.info({ tradingViewRequests }, 'TradingView requests');
 
-  _.forIn(tradingViewRequests, async (request, _requestInterval) => {
-    promises.push(
-      retrieveTradingView(logger, request.symbols, request.interval)
-    );
-  });
+  const promises = _.map(tradingViewRequests, request =>
+    retrieveTradingView(logger, request.symbols, request.interval)
+  );
 
   Promise.all(promises);
 

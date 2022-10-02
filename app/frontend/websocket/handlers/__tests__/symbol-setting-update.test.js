@@ -6,6 +6,8 @@ describe('symbol-setting-update.test.js', () => {
 
   let mockLogger;
 
+  let mockQueue;
+
   let mockGetSymbolConfiguration;
   let mockSaveSymbolConfiguration;
 
@@ -17,6 +19,12 @@ describe('symbol-setting-update.test.js', () => {
     mockWebSocketServer = {
       send: mockWebSocketServerWebSocketSend
     };
+
+    mockQueue = {
+      executeFor: jest.fn().mockResolvedValue(true)
+    };
+
+    jest.mock('../../../../cronjob/trailingTradeHelper/queue', () => mockQueue);
   });
 
   describe('when configuration is valid', () => {
@@ -256,6 +264,10 @@ describe('symbol-setting-update.test.js', () => {
           }
         }
       );
+    });
+
+    it('triggers queue.executeFor', () => {
+      expect(mockQueue.executeFor).toHaveBeenCalledWith(mockLogger, 'BTCUSDT');
     });
 
     it('triggers ws.send', () => {

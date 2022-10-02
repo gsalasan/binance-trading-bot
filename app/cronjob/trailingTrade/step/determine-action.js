@@ -5,7 +5,7 @@ const { slack } = require('../../../helpers');
 const {
   isActionDisabled,
   getNumberOfBuyOpenOrders,
-  getNumberOfOpenTrades,
+  isExceedingMaxOpenTrades,
   getAPILimit
 } = require('../../trailingTradeHelper/common');
 const { getGridTradeOrder } = require('../../trailingTradeHelper/order');
@@ -123,45 +123,6 @@ const isExceedingMaxBuyOpenOrders = async (logger, data) => {
 };
 
 /**
- * Check whether max number of open trades has reached
- *
- * @param {*} logger
- * @param {*} data
- * @returns
- */
-const isExceedingMaxOpenTrades = async (logger, data) => {
-  const {
-    symbolConfiguration: {
-      botOptions: {
-        orderLimit: {
-          enabled: orderLimitEnabled,
-          maxOpenTrades: orderLimitMaxOpenTrades
-        }
-      }
-    },
-    sell: { lastBuyPrice }
-  } = data;
-
-  if (orderLimitEnabled === false) {
-    return false;
-  }
-
-  let currentOpenTrades = await getNumberOfOpenTrades(logger);
-
-  // If the last buy price is recorded, this is one of open trades.
-  // Deduct 1 from the current open trades and calculate it.
-  if (lastBuyPrice) {
-    currentOpenTrades -= 1;
-  }
-
-  if (currentOpenTrades >= orderLimitMaxOpenTrades) {
-    return true;
-  }
-
-  return false;
-};
-
-/**
  * Set buy action and message
  *
  * @param {*} logger
@@ -175,7 +136,7 @@ const setBuyActionAndMessage = (logger, rawData, action, processMessage) => {
 
   data.action = action;
   data.buy.processMessage = processMessage;
-  data.buy.updatedAt = moment().utc();
+  data.buy.updatedAt = moment().utc().toDate();
 
   logger.info({ data, saveLog: true }, processMessage);
   return data;
@@ -323,8 +284,8 @@ const shouldForceSellByTradingViewRecommendation = (logger, data) => {
   if (tradingViewUpdatedAt.isBefore(currentTime)) {
     logger.info(
       {
-        tradingViewUpdatedAt: tradingViewUpdatedAt.format(),
-        currentTime: currentTime.format()
+        tradingViewUpdatedAt: tradingViewUpdatedAt.toISOString(),
+        currentTime: currentTime.toISOString()
       },
       `TradingView data is older than ${tradingViewUseOnlyWithin} minutes. Ignore TradingView recommendation.`
     );
@@ -414,7 +375,7 @@ const setSellActionAndMessage = (logger, rawData, action, processMessage) => {
 
   data.action = action;
   data.sell.processMessage = processMessage;
-  data.sell.updatedAt = moment().utc();
+  data.sell.updatedAt = moment().utc().toDate();
 
   logger.info({ data, saveLog: true }, processMessage);
   return data;
@@ -591,11 +552,8 @@ const execute = async (logger, rawData) => {
       // Notify as it's important message for now.
       // Eventually, should convert to logging to reduce unnecessary notifications.
       slack.sendMessage(
-        `${symbol} Action (${moment().format(
-          'HH:mm:ss.SSS'
-        )}): Force sell: \n` +
-          `- Message: ${forceSellMessage}\n` +
-          `- Current API Usage: ${getAPILimit(logger)}`
+        `*${symbol}* Action - *Force sell*: \n- Message: ${forceSellMessage}`,
+        { symbol, apiLimit: getAPILimit(logger) }
       );
 
       // Then sell market order

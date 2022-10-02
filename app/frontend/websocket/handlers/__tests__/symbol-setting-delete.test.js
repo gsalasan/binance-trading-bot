@@ -8,6 +8,8 @@ describe('symbol-setting-delete.test.js', () => {
 
   let mockDeleteSymbolConfiguration;
 
+  let mockQueue;
+
   beforeEach(() => {
     jest.clearAllMocks().resetModules();
 
@@ -16,6 +18,12 @@ describe('symbol-setting-delete.test.js', () => {
     mockWebSocketServer = {
       send: mockWebSocketServerWebSocketSend
     };
+
+    mockQueue = {
+      executeFor: jest.fn().mockResolvedValue(true)
+    };
+
+    jest.mock('../../../../cronjob/trailingTradeHelper/queue', () => mockQueue);
   });
 
   describe('when symbol is provided', () => {
@@ -45,6 +53,10 @@ describe('symbol-setting-delete.test.js', () => {
         mockLogger,
         'BTCUSDT'
       );
+    });
+
+    it('triggers queue.executeFor', () => {
+      expect(mockQueue.executeFor).toHaveBeenCalledWith(mockLogger, 'BTCUSDT');
     });
 
     it('triggers ws.send', () => {

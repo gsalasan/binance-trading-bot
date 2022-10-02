@@ -3,10 +3,10 @@ const moment = require('moment');
 const { binance, slack } = require('../../../helpers');
 const { roundDown } = require('../../trailingTradeHelper/util');
 const {
-  getAndCacheOpenOrdersForSymbol,
-  getAccountInfoFromAPI,
   isExceedAPILimit,
-  getAPILimit
+  getAPILimit,
+  getAndCacheOpenOrdersForSymbol,
+  getAccountInfoFromAPI
 } = require('../../trailingTradeHelper/common');
 const { saveGridTradeOrder } = require('../../trailingTradeHelper/order');
 
@@ -23,7 +23,7 @@ const setMessage = (logger, rawData, processMessage) => {
 
   logger.info({ data, saveLog: true }, processMessage);
   data.sell.processMessage = processMessage;
-  data.sell.updatedAt = moment().utc();
+  data.sell.updatedAt = moment().utc().toDate();
   return data;
 };
 
@@ -45,12 +45,7 @@ const execute = async (logger, rawData) => {
       filterMinNotional: { minNotional }
     },
     symbolConfiguration: {
-      sell: {
-        enabled: tradingEnabled,
-        currentGridTradeIndex,
-        currentGridTrade
-      },
-      system: { checkOrderExecutePeriod }
+      sell: { enabled: tradingEnabled, currentGridTradeIndex, currentGridTrade }
     },
     action,
     baseAssetBalance: { free: baseAssetFreeBalance },
@@ -103,7 +98,6 @@ const execute = async (logger, rawData) => {
   logger.info({ freeBalance }, 'Free balance');
 
   // If after calculating quantity percentage, it is not enough minimum notional, then simply sell all balance
-
   let orderQuantity = parseFloat(
     _.floor(freeBalance - freeBalance * (0.1 / 100), lotPrecision)
   );
@@ -116,6 +110,7 @@ const execute = async (logger, rawData) => {
       lotPrecision
     )
   );
+
   logger.info(
     { orderQuantityWithPercentage: orderQuantity },
     'Calculated order quantity with quantity percentage.'
@@ -180,12 +175,13 @@ const execute = async (logger, rawData) => {
   };
 
   slack.sendMessage(
-    `${symbol} Sell Action Grid Trade #${humanisedGridTradeIndex}(${moment().format(
-      'HH:mm:ss.SSS'
-    )}): *STOP_LOSS_LIMIT*\n` +
-      `- Order Params: \`\`\`${JSON.stringify(orderParams, undefined, 2)}\`\`\`
-      \n` +
-      `- Current API Usage: ${getAPILimit(logger)}`
+    `*${symbol}* Sell Action Grid Trade #${humanisedGridTradeIndex}: *STOP_LOSS_LIMIT*\n` +
+      `- Order Params: \`\`\`${JSON.stringify(
+        orderParams,
+        undefined,
+        2
+      )}\`\`\``,
+    { symbol, apiLimit: getAPILimit(logger) }
   );
 
   logger.info(
@@ -203,10 +199,10 @@ const execute = async (logger, rawData) => {
 
   await saveGridTradeOrder(logger, `${symbol}-grid-trade-last-sell-order`, {
     ...orderResult,
-    currentGridTradeIndex,
-    nextCheck: moment().add(checkOrderExecutePeriod, 'seconds').format()
+    currentGridTradeIndex
   });
 
+  // FIXME: If you change this comment, please refactor to use common.js:refreshOpenOrdersAndAccountInfo
   // Get open orders and update cache
   data.openOrders = await getAndCacheOpenOrdersForSymbol(logger, symbol);
   data.sell.openOrders = data.openOrders.filter(
@@ -217,15 +213,13 @@ const execute = async (logger, rawData) => {
   data.accountInfo = await getAccountInfoFromAPI(logger);
 
   slack.sendMessage(
-    `${symbol} Sell Action Grid Trade #${humanisedGridTradeIndex} Result (${moment().format(
-      'HH:mm:ss.SSS'
-    )}): *STOP_LOSS_LIMIT*\n` +
+    `*${symbol}* Sell Action Grid Trade #${humanisedGridTradeIndex} Result: *STOP_LOSS_LIMIT*\n` +
       `- Order Result: \`\`\`${JSON.stringify(
         orderResult,
         undefined,
         2
-      )}\`\`\`\n` +
-      `- Current API Usage: ${getAPILimit(logger)}`
+      )}\`\`\``,
+    { symbol, apiLimit: getAPILimit(logger) }
   );
 
   return setMessage(

@@ -1,45 +1,13 @@
 /* eslint-disable no-await-in-loop */
 const moment = require('moment');
 
-const { binance } = require('../../../helpers');
 const {
-  getAndCacheOpenOrdersForSymbol,
-  getAccountInfoFromAPI,
-  saveOverrideAction
+  cancelOrder,
+  saveOverrideAction,
+  isExceedingMaxOpenTrades,
+  refreshOpenOrdersAndAccountInfo,
+  getAccountInfoFromAPI
 } = require('../../trailingTradeHelper/common');
-
-/**
- * Cancel order
- *
- * @param {*} logger
- * @param {*} symbol
- * @param {*} order
- */
-const cancelOrder = async (logger, symbol, order) => {
-  logger.info(
-    { function: 'cancelOrder', order, saveLog: true },
-    'The order will be cancelled.'
-  );
-  // Cancel open orders first to make sure it does not have unsettled orders.
-  let result = false;
-  try {
-    const apiResult = await binance.client.cancelOrder({
-      symbol,
-      orderId: order.orderId
-    });
-    logger.info({ apiResult }, 'Cancelled open orders');
-
-    result = true;
-  } catch (e) {
-    logger.info(
-      { e, saveLog: true },
-      `Order cancellation failed, but it is ok. ` +
-        `The order may already be cancelled or executed. The bot will check in the next tick.`
-    );
-  }
-
-  return result;
-};
 
 /**
  *
@@ -82,11 +50,43 @@ const execute = async (logger, rawData) => {
       // eslint-disable-next-line no-continue
       continue;
     }
-    // Is the stop price is higher than current limit price?
+
+    // Process buy order
     if (order.side.toLowerCase() === 'buy') {
-      if (parseFloat(order.stopPrice) >= buyLimitPrice) {
+      if (await isExceedingMaxOpenTrades(logger, data)) {
+        // Cancel the initial buy order if max. open trades exceeded
+        data.action = 'buy-order-cancelled';
         logger.info(
-          { stopPrice: order.stopPrice, buyLimitPrice },
+          { data, saveLog: true },
+          `The current number of open trades has reached the maximum number of open trades. ` +
+            `The buy order will be cancelled.`
+        );
+
+        // Cancel current order
+        const cancelResult = await cancelOrder(logger, symbol, order);
+
+        // Reset buy open orders
+        if (cancelResult === false) {
+          const {
+            accountInfo,
+            openOrders: updatedOpenOrders,
+            buyOpenOrders
+          } = await refreshOpenOrdersAndAccountInfo(logger, symbol);
+
+          data.accountInfo = accountInfo;
+          data.openOrders = updatedOpenOrders;
+          data.buy.openOrders = buyOpenOrders;
+
+          data.action = 'buy-order-checking';
+        } else {
+          data.buy.openOrders = [];
+
+          data.accountInfo = await getAccountInfoFromAPI(logger);
+        }
+      } else if (parseFloat(order.stopPrice) >= buyLimitPrice) {
+        // Is the stop price is higher than current limit price?
+        logger.info(
+          { stopPrice: order.stopPrice, buyLimitPrice, saveLog: true },
           'Stop price is higher than buy limit price, cancel current buy order'
         );
 
@@ -96,18 +96,15 @@ const execute = async (logger, rawData) => {
           // If cancelling the order is failed, it means the order may already be executed or does not exist anymore.
           // Hence, refresh the order and process again in the next tick.
           // Get open orders and update cache
+          const {
+            accountInfo,
+            openOrders: updatedOpenOrders,
+            buyOpenOrders
+          } = await refreshOpenOrdersAndAccountInfo(logger, symbol);
 
-          data.openOrders = await getAndCacheOpenOrdersForSymbol(
-            logger,
-            symbol
-          );
-
-          data.buy.openOrders = data.openOrders.filter(
-            o => o.side.toLowerCase() === 'buy'
-          );
-
-          // Refresh account info
-          data.accountInfo = await getAccountInfoFromAPI(logger);
+          data.accountInfo = accountInfo;
+          data.openOrders = updatedOpenOrders;
+          data.buy.openOrders = buyOpenOrders;
 
           data.action = 'buy-order-checking';
 
@@ -116,7 +113,7 @@ const execute = async (logger, rawData) => {
             symbol,
             {
               action: 'buy',
-              actionAt: moment().format(),
+              actionAt: moment().toISOString(),
               triggeredBy: 'buy-cancelled',
               notify: false,
               checkTradingView: true
@@ -130,7 +127,6 @@ const execute = async (logger, rawData) => {
           // Set action as buy
           data.action = 'buy';
 
-          // Get account information again because the order is cancelled
           data.accountInfo = await getAccountInfoFromAPI(logger);
         }
       } else {
@@ -143,11 +139,11 @@ const execute = async (logger, rawData) => {
       }
     }
 
-    // Is the stop price is less than current limit price?
     if (order.side.toLowerCase() === 'sell') {
+      // Is the stop price is less than current limit price?
       if (parseFloat(order.stopPrice) <= sellLimitPrice) {
         logger.info(
-          { stopPrice: order.stopPrice, sellLimitPrice },
+          { stopPrice: order.stopPrice, sellLimitPrice, saveLog: true },
           'Stop price is less than sell limit price, cancel current sell order'
         );
 
@@ -158,17 +154,15 @@ const execute = async (logger, rawData) => {
           // Hence, refresh the order and process again in the next tick.
           // Get open orders and update cache
 
-          data.openOrders = await getAndCacheOpenOrdersForSymbol(
-            logger,
-            symbol
-          );
+          const {
+            accountInfo,
+            openOrders: updatedOpenOrders,
+            sellOpenOrders
+          } = await refreshOpenOrdersAndAccountInfo(logger, symbol);
 
-          data.sell.openOrders = data.openOrders.filter(
-            o => o.side.toLowerCase() === 'sell'
-          );
-
-          // Refresh account info
-          data.accountInfo = await getAccountInfoFromAPI(logger);
+          data.accountInfo = accountInfo;
+          data.openOrders = updatedOpenOrders;
+          data.sell.openOrders = sellOpenOrders;
 
           data.action = 'sell-order-checking';
         } else {
@@ -178,7 +172,7 @@ const execute = async (logger, rawData) => {
           // Set action as sell
           data.action = 'sell';
 
-          // Get account information again because the order is cancelled
+          // Refresh account info
           data.accountInfo = await getAccountInfoFromAPI(logger);
         }
       } else {

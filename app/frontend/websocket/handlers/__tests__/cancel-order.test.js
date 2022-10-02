@@ -5,6 +5,8 @@ describe('cancel-order.js', () => {
 
   let loggerMock;
 
+  let mockQueue;
+
   let mockSaveOverrideAction;
 
   beforeEach(() => {
@@ -21,6 +23,12 @@ describe('cancel-order.js', () => {
     jest.mock('../../../../cronjob/trailingTradeHelper/common', () => ({
       saveOverrideAction: mockSaveOverrideAction
     }));
+
+    mockQueue = {
+      executeFor: jest.fn().mockResolvedValue(true)
+    };
+
+    jest.mock('../../../../cronjob/trailingTradeHelper/queue', () => mockQueue);
   });
 
   beforeEach(async () => {
@@ -33,7 +41,8 @@ describe('cancel-order.js', () => {
       data: {
         symbol: 'BTCUSDT',
         order: {
-          some: 'value'
+          some: 'value',
+          side: 'buy'
         }
       }
     });
@@ -45,12 +54,16 @@ describe('cancel-order.js', () => {
       'BTCUSDT',
       {
         action: 'cancel-order',
-        order: { some: 'value' },
+        order: { some: 'value', side: 'buy' },
         actionAt: expect.any(String),
         triggeredBy: 'user'
       },
-      'Cancelling the order action has been received. Wait for cancelling the order.'
+      'Cancelling the buy order action has been received. Wait for cancelling the order.'
     );
+  });
+
+  it('triggers queue.executeFor', () => {
+    expect(mockQueue.executeFor).toHaveBeenCalledWith(loggerMock, 'BTCUSDT');
   });
 
   it('triggers ws.send', () => {
@@ -58,7 +71,7 @@ describe('cancel-order.js', () => {
       JSON.stringify({
         result: true,
         type: 'cancel-order-result',
-        message: 'Cancelling the order action has been received.'
+        message: 'Cancelling the buy order action has been received.'
       })
     );
   });

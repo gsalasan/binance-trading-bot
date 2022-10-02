@@ -11,6 +11,7 @@ describe('symbol-update-last-buy-price.test.js', () => {
   let mongoMock;
   let cacheMock;
   let PubSubMock;
+  let mockQueue;
 
   beforeEach(() => {
     jest.clearAllMocks().resetModules();
@@ -20,6 +21,12 @@ describe('symbol-update-last-buy-price.test.js', () => {
     mockWebSocketServer = {
       send: mockWebSocketServerWebSocketSend
     };
+
+    mockQueue = {
+      executeFor: jest.fn().mockResolvedValue(true)
+    };
+
+    jest.mock('../../../../cronjob/trailingTradeHelper/queue', () => mockQueue);
   });
 
   describe('update symbol last buy price', () => {
@@ -51,6 +58,13 @@ describe('symbol-update-last-buy-price.test.js', () => {
           loggerMock,
           'trailing-trade-symbols',
           { key: 'BTCUSDT-last-buy-price' }
+        );
+      });
+
+      it('triggers queue.executeFor', () => {
+        expect(mockQueue.executeFor).toHaveBeenCalledWith(
+          loggerMock,
+          'BTCUSDT'
         );
       });
 
@@ -199,6 +213,13 @@ describe('symbol-update-last-buy-price.test.js', () => {
             );
           });
 
+          it('triggers queue.executeFor', () => {
+            expect(mockQueue.executeFor).toHaveBeenCalledWith(
+              loggerMock,
+              'BTCUSDT'
+            );
+          });
+
           it('triggers PubSub.publish', () => {
             expect(PubSubMock.publish).toHaveBeenCalledWith(
               'frontend-notification',
@@ -283,6 +304,13 @@ describe('symbol-update-last-buy-price.test.js', () => {
                 lastBuyPrice: 100,
                 quantity: 0
               }
+            );
+          });
+
+          it('triggers queue.executeFor', () => {
+            expect(mockQueue.executeFor).toHaveBeenCalledWith(
+              loggerMock,
+              'BTCUSDT'
             );
           });
 

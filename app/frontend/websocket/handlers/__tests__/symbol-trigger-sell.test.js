@@ -6,6 +6,8 @@ describe('symbol-trigger-sell.test.js', () => {
 
   let mockLogger;
 
+  let mockQueue;
+
   let mockSaveOverrideAction;
 
   beforeEach(() => {
@@ -22,6 +24,12 @@ describe('symbol-trigger-sell.test.js', () => {
     jest.mock('../../../../cronjob/trailingTradeHelper/common', () => ({
       saveOverrideAction: mockSaveOverrideAction
     }));
+
+    mockQueue = {
+      executeFor: jest.fn().mockResolvedValue(true)
+    };
+
+    jest.mock('../../../../cronjob/trailingTradeHelper/queue', () => mockQueue);
   });
 
   describe('when symbol is provided', () => {
@@ -48,6 +56,10 @@ describe('symbol-trigger-sell.test.js', () => {
         },
         'The sell order received by the bot. Wait for placing the order.'
       );
+    });
+
+    it('triggers queue.executeFor', () => {
+      expect(mockQueue.executeFor).toHaveBeenCalledWith(mockLogger, 'BTCUSDT');
     });
 
     it('triggers ws.send', () => {

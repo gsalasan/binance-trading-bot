@@ -2,6 +2,7 @@
   "mode": "test",
   "tz": "Australia/Melbourne",
   "appName": "Binance Trading Bot",
+  "demoMode": false,
   "binance": {
     "live": {
       "apiKey": "71qU0Tu8UjltxQ0ce7SakEk3YmipH7DJp34Shtj1VKiQ2ZbimYrNduBMV06vl6r5",
@@ -73,6 +74,7 @@
             "whenLessThanATHRestriction": true,
             "afterDisabledPeriod": true,
             "tradingView": {
+              "overrideInterval": "",
               "whenStrongBuy": true,
               "whenBuy": true
             }

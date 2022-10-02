@@ -7,16 +7,11 @@ describe('trailingTradeIndicator', () => {
 
   let mockLoggerInfo;
   let mockSlackSendMessage;
-  let mockConfigGet;
-
   let mockGetGlobalConfiguration;
   let mockGetNextSymbol;
   let mockGetSymbolConfiguration;
   let mockGetSymbolInfo;
   let mockGetOverrideAction;
-  let mockGetAccountInfo;
-  let mockGetIndicators;
-  let mockGetOpenOrders;
   let mockExecuteDustTransfer;
   let mockGetClosedTrades;
   let mockGetOrderStats;
@@ -27,6 +22,7 @@ describe('trailingTradeIndicator', () => {
   let mockIsSymbolLocked;
   let mockUnlockSymbol;
   let mockGetAPILimit;
+  let mockErrorHandlerWrapper;
 
   beforeEach(() => {
     jest.clearAllMocks().resetModules();
@@ -48,6 +44,16 @@ describe('trailingTradeIndicator', () => {
         child: jest.fn()
       },
       slack: { sendMessage: mockSlackSendMessage }
+    }));
+
+    mockErrorHandlerWrapper = jest
+      .fn()
+      .mockImplementation((_logger, _job, callback) =>
+        Promise.resolve(callback())
+      );
+
+    jest.mock('../../error-handler', () => ({
+      errorHandlerWrapper: mockErrorHandlerWrapper
     }));
   });
 
@@ -100,31 +106,6 @@ describe('trailingTradeIndicator', () => {
         }
       }));
 
-    mockGetAccountInfo = jest.fn().mockImplementation((_logger, rawData) => ({
-      ...rawData,
-      ...{
-        accountInfo: {
-          account: 'information'
-        }
-      }
-    }));
-
-    mockGetIndicators = jest.fn().mockImplementation((_logger, rawData) => ({
-      ...rawData,
-      ...{
-        indicators: {
-          some: 'value'
-        }
-      }
-    }));
-
-    mockGetOpenOrders = jest.fn().mockImplementation((_logger, rawData) => ({
-      ...rawData,
-      ...{
-        openOrders: [{ orderId: 1 }]
-      }
-    }));
-
     mockExecuteDustTransfer = jest
       .fn()
       .mockImplementation((_logger, rawData) => ({
@@ -168,9 +149,6 @@ describe('trailingTradeIndicator', () => {
       getSymbolConfiguration: mockGetSymbolConfiguration,
       getSymbolInfo: mockGetSymbolInfo,
       getOverrideAction: mockGetOverrideAction,
-      getAccountInfo: mockGetAccountInfo,
-      getIndicators: mockGetIndicators,
-      getOpenOrders: mockGetOpenOrders,
       executeDustTransfer: mockExecuteDustTransfer,
       getClosedTrades: mockGetClosedTrades,
       getOrderStats: mockGetOrderStats,
@@ -236,9 +214,6 @@ describe('trailingTradeIndicator', () => {
             symbol: 'BTCUSDT',
             symbolConfiguration: { symbol: 'configuration data' },
             symbolInfo: { some: 'info' },
-            accountInfo: { account: 'information' },
-            indicators: { some: 'value' },
-            openOrders: [{ orderId: 1 }],
             overrideParams: { param: 'overrided' },
             quoteAssetStats: {},
             apiLimit: { start: 10, end: 10 },
@@ -296,122 +271,6 @@ describe('trailingTradeIndicator', () => {
         },
         '⏯ TrailingTradeIndicator: Skip process as the symbol is currently locked.'
       );
-    });
-  });
-
-  describe('with errors', () => {
-    beforeEach(() => {
-      mockSteps();
-    });
-
-    [
-      {
-        label: 'Error -1001',
-        code: -1001,
-        sendSlack: false,
-        featureToggleNotifyDebug: false
-      },
-      {
-        label: 'Error -1021',
-        code: -1021,
-        sendSlack: false,
-        featureToggleNotifyDebug: false
-      },
-      {
-        label: 'Error ECONNRESET',
-        code: 'ECONNRESET',
-        sendSlack: false,
-        featureToggleNotifyDebug: false
-      },
-      {
-        label: 'Error ECONNREFUSED',
-        code: 'ECONNREFUSED',
-        sendSlack: false,
-        featureToggleNotifyDebug: false
-      },
-      {
-        label: 'Error something else - with notify debug',
-        code: 'something',
-        sendSlack: true,
-        featureToggleNotifyDebug: true
-      },
-      {
-        label: 'Error something else - without notify debug',
-        code: 'something',
-        sendSlack: true,
-        featureToggleNotifyDebug: false
-      }
-    ].forEach(errorInfo => {
-      describe(`${errorInfo.label}`, () => {
-        beforeEach(async () => {
-          mockConfigGet = jest.fn(key => {
-            if (key === 'featureToggle.notifyDebug') {
-              return errorInfo.featureToggleNotifyDebug;
-            }
-            return null;
-          });
-
-          jest.mock('config', () => ({
-            get: mockConfigGet
-          }));
-
-          mockGetGlobalConfiguration = jest.fn().mockRejectedValueOnce(
-            new (class CustomError extends Error {
-              constructor() {
-                super();
-                this.code = errorInfo.code;
-                this.message = `${errorInfo.code}`;
-              }
-            })()
-          );
-
-          const {
-            execute: trailingTradeIndicatorExecute
-          } = require('../trailingTradeIndicator');
-
-          await trailingTradeIndicatorExecute(logger);
-        });
-
-        if (errorInfo.sendSlack) {
-          it('triggers slack.sendMessage', () => {
-            expect(mockSlackSendMessage).toHaveBeenCalled();
-          });
-        } else {
-          it('does not trigger slack.sendMessagage', () => {
-            expect(mockSlackSendMessage).not.toHaveBeenCalled();
-          });
-        }
-      });
-    });
-
-    describe(`redlock error`, () => {
-      beforeEach(async () => {
-        mockConfigGet = jest.fn(_key => null);
-
-        jest.mock('config', () => ({
-          get: mockConfigGet
-        }));
-
-        mockGetGlobalConfiguration = jest.fn().mockRejectedValueOnce(
-          new (class CustomError extends Error {
-            constructor() {
-              super();
-              this.code = 500;
-              this.message = `redlock:lock-XRPBUSD`;
-            }
-          })()
-        );
-
-        const {
-          execute: trailingTradeIndicatorExecute
-        } = require('../trailingTradeIndicator');
-
-        await trailingTradeIndicatorExecute(logger);
-      });
-
-      it('does not trigger slack.sendMessagage', () => {
-        expect(mockSlackSendMessage).not.toHaveBeenCalled();
-      });
     });
   });
 });

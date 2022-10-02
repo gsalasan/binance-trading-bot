@@ -40,7 +40,48 @@ class CoinWrapperBuySignal extends React.Component {
       buy: { currentGridTradeIndex, gridTrade }
     } = symbolConfiguration;
 
+    let hiddenCount = 0;
+
     const buyGridRows = gridTrade.map((grid, i) => {
+      const modifiedGridTradeIndex = Math.min(
+        Math.max(currentGridTradeIndex, 5),
+        gridTrade.length - 5
+      );
+
+      function hiddenRow(i) {
+        return (
+          i >= 3 &&
+          (i <= modifiedGridTradeIndex - 3 ||
+            i >= modifiedGridTradeIndex + 4) &&
+          i < gridTrade.length - 1
+        );
+      }
+
+      const isNextHidden = hiddenRow(i + 1);
+      const isHidden = isNextHidden || hiddenRow(i);
+
+      if (isHidden === true) {
+        hiddenCount++;
+
+        return isNextHidden === true ? (
+          ''
+        ) : (
+          <React.Fragment
+            key={'coin-wrapper-buy-grid-row-hidden-' + symbol + '-' + (i - 1)}>
+            <div className='coin-info-column-grid'>
+              <div className='coin-info-column coin-info-column-price'>
+                <div className='coin-info-label text-center text-muted'>
+                  ... {hiddenCount} grid trade{hiddenCount === 1 ? '' : 's'}{' '}
+                  hidden ...
+                </div>
+              </div>
+            </div>
+          </React.Fragment>
+        );
+      } else {
+        hiddenCount = 0;
+      }
+
       return (
         <React.Fragment key={'coin-wrapper-buy-grid-row-' + symbol + '-' + i}>
           <div className='coin-info-column-grid'>
@@ -175,7 +216,14 @@ class CoinWrapperBuySignal extends React.Component {
                     ''
                   )}
                 </div>
-                <HightlightChange className='coin-info-value'>
+                <HightlightChange
+                  className={`coin-info-value ${
+                    symbolConfiguration.buy.athRestriction.enabled &&
+                    parseFloat(buy.triggerPrice) >
+                      parseFloat(buy.athRestrictionPrice)
+                      ? 'text-warning'
+                      : ''
+                  }`}>
                   {parseFloat(buy.triggerPrice).toFixed(precision)}
                 </HightlightChange>
               </div>
@@ -186,7 +234,13 @@ class CoinWrapperBuySignal extends React.Component {
               <div className='coin-info-column coin-info-column-price'>
                 <span className='coin-info-label'>Difference to buy:</span>
                 <HightlightChange
-                  className='coin-info-value'
+                  className={`coin-info-value ${
+                    buy.difference > 0
+                      ? 'text-success'
+                      : buy.difference < 0
+                      ? 'text-danger'
+                      : ''
+                  }`}
                   id='buy-difference'>
                   {parseFloat(buy.difference).toFixed(2)}%
                 </HightlightChange>
@@ -262,7 +316,7 @@ class CoinWrapperBuySignal extends React.Component {
             </span>{' '}
           </div>
           {symbolConfiguration.buy.enabled === false ? (
-            <HightlightChange className='coin-info-message text-muted'>
+            <HightlightChange className='coin-info-message badge-pill badge-danger'>
               Trading is disabled.
             </HightlightChange>
           ) : (
@@ -325,7 +379,14 @@ class CoinWrapperBuySignal extends React.Component {
                     </Button>
                   </OverlayTrigger>
                 </div>
-                <HightlightChange className='coin-info-value'>
+                <HightlightChange
+                  className={`coin-info-value ${
+                    symbolConfiguration.buy.athRestriction.enabled &&
+                    parseFloat(buy.triggerPrice) >
+                      parseFloat(buy.athRestrictionPrice)
+                      ? 'text-warning'
+                      : ''
+                  }`}>
                   {parseFloat(buy.athRestrictionPrice).toFixed(precision)}
                 </HightlightChange>
               </div>
@@ -373,7 +434,7 @@ class CoinWrapperBuySignal extends React.Component {
         {buy.processMessage ? (
           <div className='d-flex flex-column w-100'>
             <div className='coin-info-column coin-info-column-price divider'></div>
-            <div className='coin-info-column coin-info-column-message'>
+            <div className='coin-info-column coin-info-column-message text-warning'>
               <HightlightChange className='coin-info-message'>
                 {buy.processMessage}
               </HightlightChange>

@@ -7,6 +7,8 @@ describe('symbol-grid-trade-delete.test.js', () => {
   let mockLogger;
   let mockSlack;
 
+  let mockQueue;
+
   let mockArchiveSymbolGridTrade;
   let mockDeleteSymbolGridTrade;
 
@@ -20,11 +22,24 @@ describe('symbol-grid-trade-delete.test.js', () => {
         jest.requireActual('moment')(nextCheck || '2020-01-02T00:00:00.000Z')
     );
 
+    // Mock moment to return static date
+    jest.mock(
+      'moment-timezone',
+      () => nextCheck =>
+        jest.requireActual('moment')(nextCheck || '2020-01-02T00:00:00.000Z')
+    );
+
     mockWebSocketServerWebSocketSend = jest.fn().mockResolvedValue(true);
 
     mockWebSocketServer = {
       send: mockWebSocketServerWebSocketSend
     };
+
+    mockQueue = {
+      executeFor: jest.fn().mockResolvedValue(true)
+    };
+
+    jest.mock('../../../../cronjob/trailingTradeHelper/queue', () => mockQueue);
   });
 
   describe('when symbol is provided', () => {
@@ -72,12 +87,23 @@ describe('symbol-grid-trade-delete.test.js', () => {
 
       it('triggers slack.sendMessage', () => {
         expect(mockSlack.sendMessage).toHaveBeenCalledWith(
-          expect.stringContaining('BTCUSDT Profit')
+          expect.stringContaining('*BTCUSDT* Profit'),
+          {
+            apiLimit: 0,
+            symbol: 'BTCUSDT'
+          }
         );
       });
 
       it('triggers deleteSymbolGridTrade', () => {
         expect(mockDeleteSymbolGridTrade).toHaveBeenCalledWith(
+          mockLogger,
+          'BTCUSDT'
+        );
+      });
+
+      it('triggers queue.executeFor', () => {
+        expect(mockQueue.executeFor).toHaveBeenCalledWith(
           mockLogger,
           'BTCUSDT'
         );
@@ -137,12 +163,23 @@ describe('symbol-grid-trade-delete.test.js', () => {
 
       it('triggers slack.sendMessage', () => {
         expect(mockSlack.sendMessage).toHaveBeenCalledWith(
-          expect.stringContaining('BTCUSDT Loss')
+          expect.stringContaining('*BTCUSDT* Loss'),
+          {
+            apiLimit: 0,
+            symbol: 'BTCUSDT'
+          }
         );
       });
 
       it('triggers deleteSymbolGridTrade', () => {
         expect(mockDeleteSymbolGridTrade).toHaveBeenCalledWith(
+          mockLogger,
+          'BTCUSDT'
+        );
+      });
+
+      it('triggers queue.executeFor', () => {
+        expect(mockQueue.executeFor).toHaveBeenCalledWith(
           mockLogger,
           'BTCUSDT'
         );
@@ -206,6 +243,13 @@ describe('symbol-grid-trade-delete.test.js', () => {
         );
       });
 
+      it('triggers queue.executeFor', () => {
+        expect(mockQueue.executeFor).toHaveBeenCalledWith(
+          mockLogger,
+          'BTCUSDT'
+        );
+      });
+
       it('triggers ws.send', () => {
         expect(mockWebSocketServerWebSocketSend).toHaveBeenCalledWith(
           JSON.stringify({
@@ -256,6 +300,13 @@ describe('symbol-grid-trade-delete.test.js', () => {
 
       it('triggers deleteSymbolGridTrade', () => {
         expect(mockDeleteSymbolGridTrade).toHaveBeenCalledWith(
+          mockLogger,
+          'BTCUSDT'
+        );
+      });
+
+      it('triggers queue.executeFor', () => {
+        expect(mockQueue.executeFor).toHaveBeenCalledWith(
           mockLogger,
           'BTCUSDT'
         );

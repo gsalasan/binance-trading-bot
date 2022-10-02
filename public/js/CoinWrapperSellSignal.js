@@ -42,7 +42,48 @@ class CoinWrapperSellSignal extends React.Component {
       sell: { currentGridTradeIndex, gridTrade }
     } = symbolConfiguration;
 
+    let hiddenCount = 0;
+
     const sellGridRows = gridTrade.map((grid, i) => {
+      const modifiedGridTradeIndex = Math.min(
+        Math.max(currentGridTradeIndex, 5),
+        gridTrade.length - 5
+      );
+
+      function hiddenRow(i) {
+        return (
+          i >= 3 &&
+          (i <= modifiedGridTradeIndex - 3 ||
+            i >= modifiedGridTradeIndex + 4) &&
+          i < gridTrade.length - 1
+        );
+      }
+
+      const isNextHidden = hiddenRow(i + 1);
+      const isHidden = isNextHidden || hiddenRow(i);
+
+      if (isHidden === true) {
+        hiddenCount++;
+
+        return isNextHidden === true ? (
+          ''
+        ) : (
+          <React.Fragment
+            key={'coin-wrapper-buy-grid-row-hidden-' + symbol + '-' + (i - 1)}>
+            <div className='coin-info-column-grid'>
+              <div className='coin-info-column coin-info-column-price'>
+                <div className='coin-info-label text-center text-muted'>
+                  ... {hiddenCount} grid trade{hiddenCount === 1 ? '' : 's'}{' '}
+                  hidden ...
+                </div>
+              </div>
+            </div>
+          </React.Fragment>
+        );
+      } else {
+        hiddenCount = 0;
+      }
+
       return (
         <React.Fragment key={'coin-wrapper-sell-grid-row-' + symbol + '-' + i}>
           <div className='coin-info-column-grid'>
@@ -210,7 +251,7 @@ class CoinWrapperSellSignal extends React.Component {
               </span>
             </div>
             {symbolConfiguration.sell.enabled === false ? (
-              <HightlightChange className='coin-info-message text-muted'>
+              <HightlightChange className='coin-info-message badge-pill badge-danger'>
                 Trading is disabled.
               </HightlightChange>
             ) : (
@@ -235,7 +276,10 @@ class CoinWrapperSellSignal extends React.Component {
           {sell.currentProfit ? (
             <div className='coin-info-column coin-info-column-price'>
               <span className='coin-info-label'>Profit/Loss:</span>
-              <HightlightChange className='coin-info-value'>
+              <HightlightChange
+                className={`coin-info-value ${
+                  sell.currentProfit >= 0 ? 'text-success' : 'text-danger'
+                }`}>
                 {parseFloat(sell.currentProfit).toFixed(precision)} {quoteAsset}{' '}
                 ({parseFloat(sell.currentProfitPercentage).toFixed(2)}
                 %)
@@ -278,7 +322,7 @@ class CoinWrapperSellSignal extends React.Component {
             <div className='d-flex flex-column w-100'>
               <div className='coin-info-column coin-info-column-price divider'></div>
               <div className='coin-info-column coin-info-column-message'>
-                <HightlightChange className='coin-info-message'>
+                <HightlightChange className='coin-info-message text-warning'>
                   {sell.processMessage}
                 </HightlightChange>
               </div>
@@ -320,7 +364,7 @@ class CoinWrapperSellSignal extends React.Component {
             </span>
           </div>
           {symbolConfiguration.sell.enabled === false ? (
-            <HightlightChange className='coin-info-message text-muted'>
+            <HightlightChange className='coin-info-message badge-pill badge-danger'>
               Trading is disabled.
             </HightlightChange>
           ) : (

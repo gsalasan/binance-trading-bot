@@ -8,11 +8,11 @@ describe('place-sell-stop-loss-order.js', () => {
   let slackMock;
   let loggerMock;
 
-  let mockGetAndCacheOpenOrdersForSymbol;
   let mockGetAccountInfoFromAPI;
   let mockIsExceedAPILimit;
   let mockDisableAction;
   let mockGetAPILimit;
+  let mockGetAndCacheOpenOrdersForSymbol;
 
   let mockSaveSymbolGridTrade;
 
@@ -35,6 +35,8 @@ describe('place-sell-stop-loss-order.js', () => {
       mockGetAPILimit = jest.fn().mockReturnValueOnce(10);
 
       mockSaveSymbolGridTrade = jest.fn().mockResolvedValue(true);
+
+      mockGetAndCacheOpenOrdersForSymbol = jest.fn().mockResolvedValue([]);
     });
 
     describe('when symbol is locked', () => {
@@ -45,11 +47,11 @@ describe('place-sell-stop-loss-order.js', () => {
         });
 
         jest.mock('../../../trailingTradeHelper/common', () => ({
-          getAndCacheOpenOrdersForSymbol: mockGetAndCacheOpenOrdersForSymbol,
           getAccountInfoFromAPI: mockGetAccountInfoFromAPI,
           isExceedAPILimit: mockIsExceedAPILimit,
           disableAction: mockDisableAction,
-          getAPILimit: mockGetAPILimit
+          getAPILimit: mockGetAPILimit,
+          getAndCacheOpenOrdersForSymbol: mockGetAndCacheOpenOrdersForSymbol
         }));
 
         jest.mock('../../../trailingTradeHelper/configuration', () => ({
@@ -119,11 +121,11 @@ describe('place-sell-stop-loss-order.js', () => {
         });
 
         jest.mock('../../../trailingTradeHelper/common', () => ({
-          getAndCacheOpenOrdersForSymbol: mockGetAndCacheOpenOrdersForSymbol,
           getAccountInfoFromAPI: mockGetAccountInfoFromAPI,
           isExceedAPILimit: mockIsExceedAPILimit,
           disableAction: mockDisableAction,
-          getAPILimit: mockGetAPILimit
+          getAPILimit: mockGetAPILimit,
+          getAndCacheOpenOrdersForSymbol: mockGetAndCacheOpenOrdersForSymbol
         }));
 
         jest.mock('../../../trailingTradeHelper/configuration', () => ({
@@ -193,11 +195,11 @@ describe('place-sell-stop-loss-order.js', () => {
         });
 
         jest.mock('../../../trailingTradeHelper/common', () => ({
-          getAndCacheOpenOrdersForSymbol: mockGetAndCacheOpenOrdersForSymbol,
           getAccountInfoFromAPI: mockGetAccountInfoFromAPI,
           isExceedAPILimit: mockIsExceedAPILimit,
           disableAction: mockDisableAction,
-          getAPILimit: mockGetAPILimit
+          getAPILimit: mockGetAPILimit,
+          getAndCacheOpenOrdersForSymbol: mockGetAndCacheOpenOrdersForSymbol
         }));
 
         jest.mock('../../../trailingTradeHelper/configuration', () => ({
@@ -300,11 +302,11 @@ describe('place-sell-stop-loss-order.js', () => {
           });
 
           jest.mock('../../../trailingTradeHelper/common', () => ({
-            getAndCacheOpenOrdersForSymbol: mockGetAndCacheOpenOrdersForSymbol,
             getAccountInfoFromAPI: mockGetAccountInfoFromAPI,
             isExceedAPILimit: mockIsExceedAPILimit,
             disableAction: mockDisableAction,
-            getAPILimit: mockGetAPILimit
+            getAPILimit: mockGetAPILimit,
+            getAndCacheOpenOrdersForSymbol: mockGetAndCacheOpenOrdersForSymbol
           }));
 
           jest.mock('../../../trailingTradeHelper/configuration', () => ({
@@ -389,11 +391,11 @@ describe('place-sell-stop-loss-order.js', () => {
           });
 
           jest.mock('../../../trailingTradeHelper/common', () => ({
-            getAndCacheOpenOrdersForSymbol: mockGetAndCacheOpenOrdersForSymbol,
             getAccountInfoFromAPI: mockGetAccountInfoFromAPI,
             isExceedAPILimit: mockIsExceedAPILimit,
             disableAction: mockDisableAction,
-            getAPILimit: mockGetAPILimit
+            getAPILimit: mockGetAPILimit,
+            getAndCacheOpenOrdersForSymbol: mockGetAndCacheOpenOrdersForSymbol
           }));
 
           jest.mock('../../../trailingTradeHelper/configuration', () => ({
@@ -478,11 +480,11 @@ describe('place-sell-stop-loss-order.js', () => {
           });
 
           jest.mock('../../../trailingTradeHelper/common', () => ({
-            getAndCacheOpenOrdersForSymbol: mockGetAndCacheOpenOrdersForSymbol,
             getAccountInfoFromAPI: mockGetAccountInfoFromAPI,
             isExceedAPILimit: mockIsExceedAPILimit,
             disableAction: mockDisableAction,
-            getAPILimit: mockGetAPILimit
+            getAPILimit: mockGetAPILimit,
+            getAndCacheOpenOrdersForSymbol: mockGetAndCacheOpenOrdersForSymbol
           }));
 
           jest.mock('../../../trailingTradeHelper/configuration', () => ({
@@ -569,11 +571,11 @@ describe('place-sell-stop-loss-order.js', () => {
           });
 
           jest.mock('../../../trailingTradeHelper/common', () => ({
-            getAndCacheOpenOrdersForSymbol: mockGetAndCacheOpenOrdersForSymbol,
             getAccountInfoFromAPI: mockGetAccountInfoFromAPI,
             isExceedAPILimit: mockIsExceedAPILimit,
             disableAction: mockDisableAction,
-            getAPILimit: mockGetAPILimit
+            getAPILimit: mockGetAPILimit,
+            getAndCacheOpenOrdersForSymbol: mockGetAndCacheOpenOrdersForSymbol
           }));
 
           jest.mock('../../../trailingTradeHelper/configuration', () => ({
@@ -657,11 +659,11 @@ describe('place-sell-stop-loss-order.js', () => {
           });
 
           jest.mock('../../../trailingTradeHelper/common', () => ({
-            getAndCacheOpenOrdersForSymbol: mockGetAndCacheOpenOrdersForSymbol,
             getAccountInfoFromAPI: mockGetAccountInfoFromAPI,
             isExceedAPILimit: mockIsExceedAPILimit,
             disableAction: mockDisableAction,
-            getAPILimit: mockGetAPILimit
+            getAPILimit: mockGetAPILimit,
+            getAndCacheOpenOrdersForSymbol: mockGetAndCacheOpenOrdersForSymbol
           }));
 
           jest.mock('../../../trailingTradeHelper/configuration', () => ({
@@ -745,11 +747,11 @@ describe('place-sell-stop-loss-order.js', () => {
           });
 
           jest.mock('../../../trailingTradeHelper/common', () => ({
-            getAndCacheOpenOrdersForSymbol: mockGetAndCacheOpenOrdersForSymbol,
             getAccountInfoFromAPI: mockGetAccountInfoFromAPI,
             isExceedAPILimit: mockIsExceedAPILimit,
             disableAction: mockDisableAction,
-            getAPILimit: mockGetAPILimit
+            getAPILimit: mockGetAPILimit,
+            getAndCacheOpenOrdersForSymbol: mockGetAndCacheOpenOrdersForSymbol
           }));
 
           jest.mock('../../../trailingTradeHelper/configuration', () => ({
@@ -834,11 +836,11 @@ describe('place-sell-stop-loss-order.js', () => {
         });
 
         jest.mock('../../../trailingTradeHelper/common', () => ({
-          getAndCacheOpenOrdersForSymbol: mockGetAndCacheOpenOrdersForSymbol,
           getAccountInfoFromAPI: mockGetAccountInfoFromAPI,
           isExceedAPILimit: mockIsExceedAPILimit,
           disableAction: mockDisableAction,
-          getAPILimit: mockGetAPILimit
+          getAPILimit: mockGetAPILimit,
+          getAndCacheOpenOrdersForSymbol: mockGetAndCacheOpenOrdersForSymbol
         }));
 
         jest.mock('../../../trailingTradeHelper/configuration', () => ({
@@ -924,11 +926,11 @@ describe('place-sell-stop-loss-order.js', () => {
         });
 
         jest.mock('../../../trailingTradeHelper/common', () => ({
-          getAndCacheOpenOrdersForSymbol: mockGetAndCacheOpenOrdersForSymbol,
           getAccountInfoFromAPI: mockGetAccountInfoFromAPI,
           isExceedAPILimit: mockIsExceedAPILimit,
           disableAction: mockDisableAction,
-          getAPILimit: mockGetAPILimit
+          getAPILimit: mockGetAPILimit,
+          getAndCacheOpenOrdersForSymbol: mockGetAndCacheOpenOrdersForSymbol
         }));
 
         jest.mock('../../../trailingTradeHelper/configuration', () => ({
@@ -1012,11 +1014,11 @@ describe('place-sell-stop-loss-order.js', () => {
         });
 
         jest.mock('../../../trailingTradeHelper/common', () => ({
-          getAndCacheOpenOrdersForSymbol: mockGetAndCacheOpenOrdersForSymbol,
           getAccountInfoFromAPI: mockGetAccountInfoFromAPI,
           isExceedAPILimit: mockIsExceedAPILimit,
           disableAction: mockDisableAction,
-          getAPILimit: mockGetAPILimit
+          getAPILimit: mockGetAPILimit,
+          getAndCacheOpenOrdersForSymbol: mockGetAndCacheOpenOrdersForSymbol
         }));
 
         jest.mock('../../../trailingTradeHelper/configuration', () => ({
@@ -1118,12 +1120,11 @@ describe('place-sell-stop-loss-order.js', () => {
             });
 
             jest.mock('../../../trailingTradeHelper/common', () => ({
-              getAndCacheOpenOrdersForSymbol:
-                mockGetAndCacheOpenOrdersForSymbol,
               getAccountInfoFromAPI: mockGetAccountInfoFromAPI,
               isExceedAPILimit: mockIsExceedAPILimit,
               disableAction: mockDisableAction,
-              getAPILimit: mockGetAPILimit
+              getAPILimit: mockGetAPILimit,
+              getAndCacheOpenOrdersForSymbol: mockGetAndCacheOpenOrdersForSymbol
             }));
 
             jest.mock('../../../trailingTradeHelper/configuration', () => ({
@@ -1210,7 +1211,10 @@ describe('place-sell-stop-loss-order.js', () => {
           });
 
           it('triggers getAndCacheOpenOrdersForSymbol', () => {
-            expect(mockGetAndCacheOpenOrdersForSymbol).toHaveBeenCalled();
+            expect(mockGetAndCacheOpenOrdersForSymbol).toHaveBeenCalledWith(
+              loggerMock,
+              'BTCUPUSDT'
+            );
           });
 
           it('triggers getAccountInfoFromAPI', () => {
@@ -1308,12 +1312,11 @@ describe('place-sell-stop-loss-order.js', () => {
             });
 
             jest.mock('../../../trailingTradeHelper/common', () => ({
-              getAndCacheOpenOrdersForSymbol:
-                mockGetAndCacheOpenOrdersForSymbol,
               getAccountInfoFromAPI: mockGetAccountInfoFromAPI,
               isExceedAPILimit: mockIsExceedAPILimit,
               disableAction: mockDisableAction,
-              getAPILimit: mockGetAPILimit
+              getAPILimit: mockGetAPILimit,
+              getAndCacheOpenOrdersForSymbol: mockGetAndCacheOpenOrdersForSymbol
             }));
 
             jest.mock('../../../trailingTradeHelper/configuration', () => ({
@@ -1407,7 +1410,10 @@ describe('place-sell-stop-loss-order.js', () => {
           });
 
           it('triggers getAndCacheOpenOrdersForSymbol', () => {
-            expect(mockGetAndCacheOpenOrdersForSymbol).toHaveBeenCalled();
+            expect(mockGetAndCacheOpenOrdersForSymbol).toHaveBeenCalledWith(
+              loggerMock,
+              'ALPHABTC'
+            );
           });
 
           it('triggers getAccountInfoFromAPI', () => {
@@ -1512,12 +1518,11 @@ describe('place-sell-stop-loss-order.js', () => {
             });
 
             jest.mock('../../../trailingTradeHelper/common', () => ({
-              getAndCacheOpenOrdersForSymbol:
-                mockGetAndCacheOpenOrdersForSymbol,
               getAccountInfoFromAPI: mockGetAccountInfoFromAPI,
               isExceedAPILimit: mockIsExceedAPILimit,
               disableAction: mockDisableAction,
-              getAPILimit: mockGetAPILimit
+              getAPILimit: mockGetAPILimit,
+              getAndCacheOpenOrdersForSymbol: mockGetAndCacheOpenOrdersForSymbol
             }));
 
             jest.mock('../../../trailingTradeHelper/configuration', () => ({
@@ -1611,7 +1616,10 @@ describe('place-sell-stop-loss-order.js', () => {
           });
 
           it('triggers getAndCacheOpenOrdersForSymbol', () => {
-            expect(mockGetAndCacheOpenOrdersForSymbol).toHaveBeenCalled();
+            expect(mockGetAndCacheOpenOrdersForSymbol).toHaveBeenCalledWith(
+              loggerMock,
+              'BTCBRL'
+            );
           });
 
           it('triggers getAccountInfoFromAPI', () => {
@@ -1718,12 +1726,11 @@ describe('place-sell-stop-loss-order.js', () => {
             });
 
             jest.mock('../../../trailingTradeHelper/common', () => ({
-              getAndCacheOpenOrdersForSymbol:
-                mockGetAndCacheOpenOrdersForSymbol,
               getAccountInfoFromAPI: mockGetAccountInfoFromAPI,
               isExceedAPILimit: mockIsExceedAPILimit,
               disableAction: mockDisableAction,
-              getAPILimit: mockGetAPILimit
+              getAPILimit: mockGetAPILimit,
+              getAndCacheOpenOrdersForSymbol: mockGetAndCacheOpenOrdersForSymbol
             }));
 
             jest.mock('../../../trailingTradeHelper/configuration', () => ({
@@ -1807,7 +1814,10 @@ describe('place-sell-stop-loss-order.js', () => {
           });
 
           it('triggers getAndCacheOpenOrdersForSymbol', () => {
-            expect(mockGetAndCacheOpenOrdersForSymbol).toHaveBeenCalled();
+            expect(mockGetAndCacheOpenOrdersForSymbol).toHaveBeenCalledWith(
+              loggerMock,
+              'BTCUPUSDT'
+            );
           });
 
           it('triggers getAccountInfoFromAPI', () => {
@@ -1912,12 +1922,11 @@ describe('place-sell-stop-loss-order.js', () => {
             });
 
             jest.mock('../../../trailingTradeHelper/common', () => ({
-              getAndCacheOpenOrdersForSymbol:
-                mockGetAndCacheOpenOrdersForSymbol,
               getAccountInfoFromAPI: mockGetAccountInfoFromAPI,
               isExceedAPILimit: mockIsExceedAPILimit,
               disableAction: mockDisableAction,
-              getAPILimit: mockGetAPILimit
+              getAPILimit: mockGetAPILimit,
+              getAndCacheOpenOrdersForSymbol: mockGetAndCacheOpenOrdersForSymbol
             }));
 
             jest.mock('../../../trailingTradeHelper/configuration', () => ({
@@ -2001,7 +2010,10 @@ describe('place-sell-stop-loss-order.js', () => {
           });
 
           it('triggers getAndCacheOpenOrdersForSymbol', () => {
-            expect(mockGetAndCacheOpenOrdersForSymbol).toHaveBeenCalled();
+            expect(mockGetAndCacheOpenOrdersForSymbol).toHaveBeenCalledWith(
+              loggerMock,
+              'ALPHABTC'
+            );
           });
 
           it('triggers getAccountInfoFromAPI', () => {
@@ -2106,12 +2118,11 @@ describe('place-sell-stop-loss-order.js', () => {
             });
 
             jest.mock('../../../trailingTradeHelper/common', () => ({
-              getAndCacheOpenOrdersForSymbol:
-                mockGetAndCacheOpenOrdersForSymbol,
               getAccountInfoFromAPI: mockGetAccountInfoFromAPI,
               isExceedAPILimit: mockIsExceedAPILimit,
               disableAction: mockDisableAction,
-              getAPILimit: mockGetAPILimit
+              getAPILimit: mockGetAPILimit,
+              getAndCacheOpenOrdersForSymbol: mockGetAndCacheOpenOrdersForSymbol
             }));
 
             jest.mock('../../../trailingTradeHelper/configuration', () => ({
@@ -2195,7 +2206,10 @@ describe('place-sell-stop-loss-order.js', () => {
           });
 
           it('triggers getAndCacheOpenOrdersForSymbol', () => {
-            expect(mockGetAndCacheOpenOrdersForSymbol).toHaveBeenCalled();
+            expect(mockGetAndCacheOpenOrdersForSymbol).toHaveBeenCalledWith(
+              loggerMock,
+              'BTCBRL'
+            );
           });
 
           it('triggers getAccountInfoFromAPI', () => {
