@@ -48,7 +48,8 @@ class App extends React.Component {
       ],
       selectedSortOption: {
         sortBy: 'default',
-        sortByDesc: false
+        sortByDesc: false,
+        hideInactive: false
       },
       searchKeyword: '',
       isLoaded: false,
@@ -57,7 +58,8 @@ class App extends React.Component {
       authToken: localStorage.getItem('authToken') || '',
       totalProfitAndLoss: {},
       streamsCount: 0,
-      symbolsCount: 0,
+      monitoringSymbolsCount: 0,
+      cachedMonitoringSymbolsCount: 0,
       page: 1,
       totalPages: 1
     };
@@ -135,7 +137,8 @@ class App extends React.Component {
       page: this.state.page,
       searchKeyword: this.state.searchKeyword,
       sortBy: this.state.selectedSortOption.sortBy,
-      sortByDesc: this.state.selectedSortOption.sortByDesc
+      sortByDesc: this.state.selectedSortOption.sortByDesc,
+      hideInactive: this.state.selectedSortOption.hideInactive
     });
   }
 
@@ -213,7 +216,16 @@ class App extends React.Component {
             ''
           ),
           streamsCount: _.get(response, ['common', 'streamsCount'], 0),
-          symbolsCount: _.get(response, ['common', 'symbolsCount'], 0),
+          monitoringSymbolsCount: _.get(
+            response,
+            ['common', 'monitoringSymbolsCount'],
+            0
+          ),
+          cachedMonitoringSymbolsCount: _.get(
+            response,
+            ['common', 'cachedMonitoringSymbolsCount'],
+            0
+          ),
           totalPages: _.get(response, ['common', 'totalPages'], 1)
         });
       }
@@ -258,6 +270,22 @@ class App extends React.Component {
     };
   }
 
+  isAccountLoaded() {
+    const { isLoaded, accountInfo } = this.state;
+
+    return isLoaded === true && _.get(accountInfo, 'accountType') === 'SPOT';
+  }
+
+  isLocked() {
+    const { isAuthenticated, botOptions, isLoaded } = this.state;
+
+    return (
+      isLoaded === true &&
+      isAuthenticated === false &&
+      _.get(botOptions, ['authentication', 'lockList'], true) === true
+    );
+  }
+
   sendWebSocket(command, data = {}) {
     const { instance, connected } = this.state.webSocket;
 
@@ -275,6 +303,19 @@ class App extends React.Component {
   }
 
   setSearchKeyword(searchKeyword) {
+    if (searchKeyword)
+      this.toast({
+        type: 'success',
+        title: `Filtering assets with ${searchKeyword}`
+      });
+    else
+      this.toast({
+        type: 'success',
+        title: this.state.selectedSortOption.hideInactive
+          ? 'Showing active symbols'
+          : 'Showing all symbols'
+      });
+
     this.setState({
       searchKeyword,
       page: 1
@@ -290,7 +331,8 @@ class App extends React.Component {
   componentDidMount() {
     let selectedSortOption = {
       sortBy: 'default',
-      sortByDesc: false
+      sortByDesc: false,
+      hideInactive: false
     };
 
     try {
@@ -298,7 +340,8 @@ class App extends React.Component {
         localStorage.getItem('selectedSortOption')
       ) || {
         sortBy: 'default',
-        sortByDesc: false
+        sortByDesc: false,
+        hideInactive: false
       };
     } catch (e) {}
 
@@ -330,13 +373,13 @@ class App extends React.Component {
       publicURL,
       apiInfo,
       streamsCount,
-      symbolsCount,
+      monitoringSymbolsCount,
+      cachedMonitoringSymbolsCount,
       dustTransfer,
       availableSortOptions,
       selectedSortOption,
       searchKeyword,
       isAuthenticated,
-      botOptions,
       isLoaded,
       totalProfitAndLoss,
       page,
@@ -347,15 +390,23 @@ class App extends React.Component {
       return <AppLoading />;
     }
 
-    if (
-      isLoaded === true &&
-      isAuthenticated === false &&
-      _.get(botOptions, ['authentication', 'lockList'], true) === true
-    ) {
+    if (this.isLocked()) {
       return <LockScreen />;
     }
 
-    const coinWrappers = symbols.map((symbol, index) => {
+    if (this.isAccountLoaded() === false) {
+      return <APIError />;
+    }
+
+    const activeSymbols = selectedSortOption.hideInactive
+      ? symbols.filter(
+          s =>
+            s.symbolConfiguration.buy.enabled ||
+            s.symbolConfiguration.sell.enabled
+        )
+      : symbols;
+
+    const coinWrappers = activeSymbols.map((symbol, index) => {
       return (
         <CoinWrapper
           extraClassName={
@@ -443,6 +494,7 @@ class App extends React.Component {
                 dustTransfer={dustTransfer}
                 sendWebSocket={this.sendWebSocket}
                 totalProfitAndLoss={totalProfitAndLoss}
+                setSearchKeyword={this.setSearchKeyword}
               />
               <ProfitLossWrapper
                 isAuthenticated={isAuthenticated}
@@ -452,7 +504,12 @@ class App extends React.Component {
                 sendWebSocket={this.sendWebSocket}
                 totalProfitAndLoss={totalProfitAndLoss}
               />
-              <OrderStats orderStats={orderStats} />
+              <OrderStats
+                orderStats={orderStats}
+                selectedSortOption={selectedSortOption}
+                searchKeyword={searchKeyword}
+                setSearchKeyword={this.setSearchKeyword}
+              />
             </div>
             <Pagination>{paginationItems}</Pagination>
             <div className='coin-wrappers'>{coinWrappers}</div>
@@ -461,7 +518,8 @@ class App extends React.Component {
               <Status
                 apiInfo={apiInfo}
                 streamsCount={streamsCount}
-                symbolsCount={symbolsCount}
+                monitoringSymbolsCount={monitoringSymbolsCount}
+                cachedMonitoringSymbolsCount={cachedMonitoringSymbolsCount}
               />
             </div>
           </div>

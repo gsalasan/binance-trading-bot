@@ -62,14 +62,23 @@ const cacheExchangeSymbols = async logger => {
   const { symbols } = exchangeInfo;
 
   const exchangeSymbols = symbols.reduce((acc, symbol) => {
+    // For backward compatibility, MIN_NOTIONAL is deprecated.
     const minNotionalFilter = _.find(symbol.filters, {
       filterType: 'MIN_NOTIONAL'
     });
+
+    // New filter type is NOTIONAL.
+    const notionalFilter = _.find(symbol.filters, {
+      filterType: 'NOTIONAL'
+    });
+
     acc[symbol.symbol] = {
       symbol: symbol.symbol,
       status: symbol.status,
       quoteAsset: symbol.quoteAsset,
-      minNotional: parseFloat(minNotionalFilter.minNotional)
+      minNotional: minNotionalFilter
+        ? parseFloat(minNotionalFilter.minNotional)
+        : parseFloat(notionalFilter.minNotional)
     };
 
     return acc;
@@ -321,50 +330,6 @@ const removeLastBuyPrice = async (logger, symbol) => {
 };
 
 /**
- * Lock symbol
- *
- * @param {*} logger
- * @param {*} symbol
- * @param {*} ttl
- *
- * @returns
- */
-const lockSymbol = async (logger, symbol, ttl = 5) => {
-  logger.info({ symbol }, `Lock ${symbol} for ${ttl} seconds`);
-  return cache.hset('bot-lock', symbol, true, ttl);
-};
-
-/**
- * Check if symbol is locked
- *
- * @param {*} logger
- * @param {*} symbol
- * @returns
- */
-const isSymbolLocked = async (logger, symbol) => {
-  const isLocked = (await cache.hget('bot-lock', symbol)) === 'true';
-
-  if (isLocked === true) {
-    logger.info({ symbol, isLocked }, `🔒 Symbol is locked - ${symbol}`);
-  } else {
-    logger.info({ symbol, isLocked }, `🔓 Symbol is not locked - ${symbol} `);
-  }
-  return isLocked;
-};
-
-/**
- * Unlock symbol
- *
- * @param {*} logger
- * @param {*} symbol
- * @returns
- */
-const unlockSymbol = async (logger, symbol) => {
-  logger.info({ symbol }, `Unlock ${symbol}`);
-  return cache.hdel('bot-lock', symbol);
-};
-
-/**
  * Disable action
  *
  * @param {*} logger
@@ -523,6 +488,9 @@ const calculateLastBuyPrice = async (logger, symbol, order) => {
 
   const newLastBuyPrice = newTotalAmount / newQuantity;
 
+  const notifyDebug = config.get('featureToggle.notifyDebug');
+  const notifyOrderConfirm = config.get('featureToggle.notifyOrderConfirm');
+
   logger.info(
     { newLastBuyPrice, newTotalAmount, newQuantity, saveLog: true },
     `The last buy price will be saved. New last buy price: ${newLastBuyPrice}`
@@ -537,22 +505,23 @@ const calculateLastBuyPrice = async (logger, symbol, order) => {
     title: `New last buy price for ${symbol} has been updated.`
   });
 
-  slack.sendMessage(
-    `*${symbol}* Last buy price Updated: *${type}*\n` +
-      `- Order Result: \`\`\`${JSON.stringify(
-        {
-          orgLastBuyPrice,
-          orgQuantity,
-          orgTotalAmount,
-          newLastBuyPrice,
-          newQuantity,
-          newTotalAmount
-        },
-        undefined,
-        2
-      )}\`\`\``,
-    { symbol, apiLimit: getAPILimit(logger) }
-  );
+  if (notifyDebug || notifyOrderConfirm)
+    slack.sendMessage(
+      `*${symbol}* Last buy price Updated: *${type}*\n` +
+        `- Order Result: \`\`\`${JSON.stringify(
+          {
+            orgLastBuyPrice,
+            orgQuantity,
+            orgTotalAmount,
+            newLastBuyPrice,
+            newQuantity,
+            newTotalAmount
+          },
+          undefined,
+          2
+        )}\`\`\``,
+      { symbol, apiLimit: getAPILimit(logger) }
+    );
 };
 
 /**
@@ -595,6 +564,16 @@ const getSymbolInfo = async (logger, symbol) => {
     symbolInfo.filters,
     f => f.filterType === 'MIN_NOTIONAL'
   )[0];
+  // eslint-disable-next-line prefer-destructuring
+  symbolInfo.filterNotional = _.filter(
+    symbolInfo.filters,
+    f => f.filterType === 'NOTIONAL'
+  )[0];
+
+  // This is for a backward compatibility that filterMinNotional is not available.
+  if (symbolInfo.filterNotional) {
+    symbolInfo.filterMinNotional = symbolInfo.filterNotional;
+  }
 
   logger.info({ symbolInfo }, 'Retrieved symbol info from Binance.');
 
@@ -652,28 +631,59 @@ const verifyAuthenticated = async (funcLogger, authToken) => {
 };
 
 /**
- * Save number of buy open orders
+ * Save number of buy open orders and list of symbols with open orders
  *
  * @param {*} logger
  * @param {*} symbols
  */
 const saveNumberOfBuyOpenOrders = async (logger, symbols) => {
-  const numberOfBuyOpenOrders = await mongo.count(
+  const buyOpenOrders = await mongo.aggregate(
     logger,
     'trailing-trade-grid-trade-orders',
-    {
-      key: {
-        $regex: `(${symbols.join('|')})-grid-trade-last-buy-order`
+    [
+      {
+        $match: {
+          key: {
+            $regex: `(${symbols.join('|')})-grid-trade-last-buy-order`
+          }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          key: 1
+        }
       }
-    }
+    ]
+  );
+
+  const openOrders = _.map(buyOpenOrders, order =>
+    order.key.replace('-grid-trade-last-buy-order', '')
+  );
+
+  await cache.hset(
+    'trailing-trade-common',
+    'open-orders-symbols',
+    JSON.stringify(openOrders)
   );
 
   await cache.hset(
     'trailing-trade-common',
     'number-of-buy-open-orders',
-    numberOfBuyOpenOrders
+    openOrders.length
   );
 };
+
+/**
+ * Get symbols with open orders
+ *
+ * @param {*} _logger
+ * @returns
+ */
+const getOpenOrdersSymbols = async _logger =>
+  JSON.parse(
+    await cache.hget('trailing-trade-common', 'open-orders-symbols')
+  ) || [];
 
 /**
  * Get number of buy open orders
@@ -689,26 +699,46 @@ const getNumberOfBuyOpenOrders = async _logger =>
   );
 
 /**
- * Save number of active orders
+ * Save number of active orders and list of symbols with active orders
  *
  * @param {*} logger
  * @param {*} symbols
  */
 const saveNumberOfOpenTrades = async (logger, symbols) => {
-  const numberOfOpenTrades = await mongo.count(
+  const openTradesSymbols = await mongo.aggregate(
     logger,
     'trailing-trade-symbols',
-    {
-      key: {
-        $regex: `(${symbols.join('|')})-last-buy-price`
+    [
+      {
+        $match: {
+          key: {
+            $regex: `(${symbols.join('|')})-last-buy-price`
+          }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          key: 1
+        }
       }
-    }
+    ]
+  );
+
+  const openTrades = _.map(openTradesSymbols, trade =>
+    trade.key.replace('-last-buy-price', '')
+  );
+
+  await cache.hset(
+    'trailing-trade-common',
+    'open-trades-symbols',
+    JSON.stringify(openTrades)
   );
 
   await cache.hset(
     'trailing-trade-common',
     'number-of-open-trades',
-    numberOfOpenTrades
+    openTrades.length
   );
 };
 
@@ -723,6 +753,17 @@ const getNumberOfOpenTrades = async _logger =>
     (await cache.hget('trailing-trade-common', 'number-of-open-trades')) || 0,
     10
   );
+
+/**
+ * Get symbols with open trades
+ *
+ * @param {*} _logger
+ * @returns
+ */
+const getOpenTradesSymbols = async _logger =>
+  JSON.parse(
+    await cache.hget('trailing-trade-common', 'open-trades-symbols')
+  ) || [];
 
 /**
  * Save order statistics
@@ -875,6 +916,15 @@ const updateAccountInfo = async (logger, balances, lastAccountUpdate) => {
   return accountInfo;
 };
 
+const countCacheTrailingTradeSymbols = async logger => {
+  const result = await mongo.aggregate(logger, 'trailing-trade-cache', [
+    { $match: {} },
+    { $group: { _id: null, count: { $sum: 1 } } }
+  ]);
+
+  return _.get(result, ['0', 'count'], 0);
+};
+
 const getCacheTrailingTradeSymbols = async (
   logger,
   sortByDesc,
@@ -885,7 +935,19 @@ const getCacheTrailingTradeSymbols = async (
 ) => {
   const match = {};
 
-  if (searchKeyword) {
+  if (searchKeyword === 'open trades') {
+    const openTradesSymbols = await getOpenTradesSymbols(logger);
+    match.symbol = {
+      $regex: `(${openTradesSymbols.join('|')})`,
+      $options: 'i'
+    };
+  } else if (searchKeyword === 'open orders') {
+    const openOrdersSymbols = await getOpenOrdersSymbols(logger);
+    match.symbol = {
+      $regex: `(${openOrdersSymbols.join('|')})`,
+      $options: 'i'
+    };
+  } else if (searchKeyword) {
     match.symbol = {
       $regex: searchKeyword,
       $options: 'i'
@@ -966,7 +1028,7 @@ const getCacheTrailingTradeSymbols = async (
         if: {
           $eq: ['$buy.difference', null]
         },
-        then: '$symbol',
+        then: sortByDesc ? -Infinity : Infinity,
         else: '$buy.difference'
       }
     };
@@ -978,7 +1040,7 @@ const getCacheTrailingTradeSymbols = async (
         if: {
           $eq: ['$sell.currentProfitPercentage', null]
         },
-        then: '$symbol',
+        then: sortByDesc ? -Infinity : Infinity,
         else: '$sell.currentProfitPercentage'
       }
     };
@@ -1007,7 +1069,7 @@ const getCacheTrailingTradeSymbols = async (
         sortField
       }
     },
-    { $sort: { sortField: sortDirection } },
+    { $sort: { sortField: sortDirection, symbol: 1 } },
     { $skip: (pageNum - 1) * symbolsPerPage },
     { $limit: symbolsPerPage }
   ];
@@ -1166,9 +1228,6 @@ module.exports = {
   getLastBuyPrice,
   saveLastBuyPrice,
   removeLastBuyPrice,
-  lockSymbol,
-  isSymbolLocked,
-  unlockSymbol,
   disableAction,
   isActionDisabled,
   deleteDisableAction,
@@ -1183,13 +1242,16 @@ module.exports = {
   verifyAuthenticated,
   saveNumberOfBuyOpenOrders,
   getNumberOfBuyOpenOrders,
+  getOpenOrdersSymbols,
   saveNumberOfOpenTrades,
   getNumberOfOpenTrades,
+  getOpenTradesSymbols,
   saveOrderStats,
   saveOverrideAction,
   saveOverrideIndicatorAction,
   saveCandle,
   updateAccountInfo,
+  countCacheTrailingTradeSymbols,
   getCacheTrailingTradeSymbols,
   getCacheTrailingTradeTotalProfitAndLoss,
   getCacheTrailingTradeQuoteEstimates,

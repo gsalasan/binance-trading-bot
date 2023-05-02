@@ -2,6 +2,7 @@ const { v4: uuidv4 } = require('uuid');
 const _ = require('lodash');
 const { binance } = require('../helpers');
 const queue = require('../cronjob/trailingTradeHelper/queue');
+const { executeTrailingTrade } = require('../cronjob/index');
 
 const {
   updateAccountInfo,
@@ -54,9 +55,9 @@ const setupUserWebsocket = async logger => {
         orderTime: transactTime // Transaction time
       } = evt;
 
+      const correlationId = uuidv4();
       const symbolLogger = logger.child({
-        jobName: 'trailingTrade',
-        correlationId: uuidv4(),
+        correlationId,
         symbol
       });
 
@@ -67,7 +68,7 @@ const setupUserWebsocket = async logger => {
 
       const checkLastOrder = async () => {
         const lastOrder = await getGridTradeLastOrder(
-          logger,
+          symbolLogger,
           symbol,
           side.toLowerCase()
         );
@@ -84,7 +85,7 @@ const setupUserWebsocket = async logger => {
               { lastOrder, evt, saveLog: true },
               'This order update is an old order. Do not update last grid trade order.'
             );
-            return;
+            return false;
           }
 
           const updatedOrder = {
@@ -103,7 +104,7 @@ const setupUserWebsocket = async logger => {
           };
 
           await updateGridTradeLastOrder(
-            logger,
+            symbolLogger,
             symbol,
             side.toLowerCase(),
             updatedOrder
@@ -113,17 +114,23 @@ const setupUserWebsocket = async logger => {
             `The last order has been updated. ${orderId} - ${side} - ${orderStatus}`
           );
 
-          queue.executeFor(symbolLogger, symbol);
+          return true;
         }
+
+        return false;
       };
 
-      checkLastOrder();
+      queue.execute(symbolLogger, symbol, {
+        correlationId,
+        preprocessFn: checkLastOrder,
+        processFn: executeTrailingTrade
+      });
 
       const checkManualOrder = async () => {
-        const manualOrder = await getManualOrder(logger, symbol, orderId);
+        const manualOrder = await getManualOrder(symbolLogger, symbol, orderId);
 
         if (_.isEmpty(manualOrder) === false) {
-          await saveManualOrder(logger, symbol, orderId, {
+          await saveManualOrder(symbolLogger, symbol, orderId, {
             ...manualOrder,
             status: orderStatus,
             type: orderType,
@@ -137,16 +144,22 @@ const setupUserWebsocket = async logger => {
             updateTime: eventTime
           });
 
-          logger.info(
+          symbolLogger.info(
             { symbol, manualOrder, saveLog: true },
             'The manual order has been updated.'
           );
 
-          queue.executeFor(logger, symbol);
+          return true;
         }
+
+        return false;
       };
 
-      checkManualOrder();
+      queue.execute(symbolLogger, symbol, {
+        correlationId,
+        preprocessFn: checkManualOrder,
+        processFn: executeTrailingTrade
+      });
     }
   });
 };

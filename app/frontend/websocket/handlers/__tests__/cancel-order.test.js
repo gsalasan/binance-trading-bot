@@ -5,7 +5,7 @@ describe('cancel-order.js', () => {
 
   let loggerMock;
 
-  let mockQueue;
+  let mockExecute;
 
   let mockSaveOverrideAction;
 
@@ -24,17 +24,21 @@ describe('cancel-order.js', () => {
       saveOverrideAction: mockSaveOverrideAction
     }));
 
-    mockQueue = {
-      executeFor: jest.fn().mockResolvedValue(true)
-    };
+    mockExecute = jest.fn((funcLogger, symbol, jobPayload) => {
+      if (!funcLogger || !symbol || !jobPayload) return false;
+      return jobPayload.preprocessFn();
+    });
 
-    jest.mock('../../../../cronjob/trailingTradeHelper/queue', () => mockQueue);
+    jest.mock('../../../../cronjob/trailingTradeHelper/queue', () => ({
+      execute: mockExecute
+    }));
   });
 
   beforeEach(async () => {
     const { logger } = require('../../../../helpers');
 
     loggerMock = logger;
+    loggerMock.fields = { correlationId: 'correlationId' };
 
     const { handleCancelOrder } = require('../cancel-order');
     await handleCancelOrder(loggerMock, mockWebSocketServer, {
@@ -62,8 +66,12 @@ describe('cancel-order.js', () => {
     );
   });
 
-  it('triggers queue.executeFor', () => {
-    expect(mockQueue.executeFor).toHaveBeenCalledWith(loggerMock, 'BTCUSDT');
+  it('triggers queue.execute', () => {
+    expect(mockExecute).toHaveBeenCalledWith(loggerMock, 'BTCUSDT', {
+      correlationId: 'correlationId',
+      preprocessFn: expect.any(Function),
+      processFn: expect.any(Function)
+    });
   });
 
   it('triggers ws.send', () => {

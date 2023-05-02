@@ -7,11 +7,11 @@ describe('manual-trade-all-symbols.js', () => {
 
   let loggerMock;
   let PubSubMock;
-  let mockQueue;
 
   let mockGetGlobalConfiguration;
 
   let mockSaveOverrideAction;
+  let mockExecute;
 
   const orders = {
     side: 'buy',
@@ -238,17 +238,21 @@ describe('manual-trade-all-symbols.js', () => {
       saveOverrideAction: mockSaveOverrideAction
     }));
 
-    mockQueue = {
-      executeFor: jest.fn().mockResolvedValue(true)
-    };
+    mockExecute = jest.fn((funcLogger, symbol, jobPayload) => {
+      if (!funcLogger || !symbol || !jobPayload) return false;
+      return jobPayload.preprocessFn();
+    });
 
-    jest.mock('../../../../cronjob/trailingTradeHelper/queue', () => mockQueue);
+    jest.mock('../../../../cronjob/trailingTradeHelper/queue', () => ({
+      execute: mockExecute
+    }));
   });
 
   beforeEach(async () => {
     const { logger, PubSub } = require('../../../../helpers');
 
     loggerMock = logger;
+    loggerMock.fields = { correlationId: 'correlationId' };
     PubSubMock = PubSub;
 
     PubSubMock.publish = jest.fn().mockResolvedValue(true);
@@ -310,11 +314,12 @@ describe('manual-trade-all-symbols.js', () => {
                 );
               });
 
-              it('triggers queue.executeFor', () => {
-                expect(mockQueue.executeFor).toHaveBeenCalledWith(
-                  loggerMock,
-                  symbol
-                );
+              it('triggers queue.execute', () => {
+                expect(mockExecute).toHaveBeenCalledWith(loggerMock, symbol, {
+                  correlationId: 'correlationId',
+                  preprocessFn: expect.any(Function),
+                  processFn: expect.any(Function)
+                });
               });
             } else {
               it('does not trigger saveOverrideAction', () => {
@@ -410,10 +415,15 @@ describe('manual-trade-all-symbols.js', () => {
                 );
               });
 
-              it('triggers queue.executeFor', () => {
-                expect(mockQueue.executeFor).toHaveBeenCalledWith(
+              it('triggers queue.execute', () => {
+                expect(mockExecute).toHaveBeenCalledWith(
                   loggerMock,
-                  'BTCUSDT'
+                  'BTCUSDT',
+                  {
+                    correlationId: 'correlationId',
+                    preprocessFn: expect.any(Function),
+                    processFn: expect.any(Function)
+                  }
                 );
               });
             } else {

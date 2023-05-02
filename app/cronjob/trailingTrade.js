@@ -1,10 +1,7 @@
 const { v4: uuidv4 } = require('uuid');
 const config = require('config');
 
-const {
-  getAccountInfo,
-  isSymbolLocked
-} = require('./trailingTradeHelper/common');
+const { getAccountInfo } = require('./trailingTradeHelper/common');
 
 const {
   getSymbolConfiguration,
@@ -27,17 +24,14 @@ const {
 } = require('./trailingTrade/steps');
 const { errorHandlerWrapper } = require('../error-handler');
 
-const execute = async (rawLogger, symbol) => {
+const execute = async (rawLogger, symbol, correlationId = uuidv4()) => {
   const logger = rawLogger.child({
     jobName: 'trailingTrade',
-    correlationId: uuidv4(),
+    correlationId,
     symbol
   });
 
   await errorHandlerWrapper(logger, 'Trailing Trade', async () => {
-    // Check if the symbol is locked, if it is locked, it means the symbol is updating in the indicator.
-    const isLocked = await isSymbolLocked(logger, symbol);
-
     logger.info({ debug: true }, '▶ TrailingTrade: Start process...');
 
     // Retrieve account info from cache
@@ -49,7 +43,6 @@ const execute = async (rawLogger, symbol) => {
     // Define skeleton of data structure
     let data = {
       symbol,
-      isLocked,
       featureToggle,
       lastCandle: {},
       accountInfo,

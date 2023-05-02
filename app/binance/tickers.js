@@ -1,6 +1,8 @@
+const { v4: uuidv4 } = require('uuid');
 const _ = require('lodash');
 const { binance, cache } = require('../helpers');
 const queue = require('../cronjob/trailingTradeHelper/queue');
+const { executeTrailingTrade } = require('../cronjob/index');
 
 const {
   getAccountInfo,
@@ -44,29 +46,44 @@ const setupTickersWebsocket = async (logger, symbols) => {
       monitoringSymbol,
       ticker => {
         errorHandlerWrapper(logger, 'Tickers', async () => {
+          const correlationId = uuidv4();
+
           const { eventType, eventTime, curDayClose: close, symbol } = ticker;
 
-          // Save latest candle for the symbol
-          await cache.hset(
-            'trailing-trade-symbols',
-            `${symbol}-latest-candle`,
-            JSON.stringify({
-              eventType,
-              eventTime,
-              symbol,
-              close
-            })
-          );
+          const symbolLogger = logger.child({
+            correlationId,
+            symbol
+          });
+
+          const saveCandle = async () => {
+            // Save latest candle for the symbol
+            await cache.hset(
+              'trailing-trade-symbols',
+              `${symbol}-latest-candle`,
+              JSON.stringify({
+                eventType,
+                eventTime,
+                symbol,
+                close
+              })
+            );
+          };
 
           const canExecuteTrailingTrade = symbols.includes(monitoringSymbol);
 
-          logger.info(
+          symbolLogger.info(
             { ticker, canExecuteTrailingTrade },
             'Received new ticker'
           );
 
           if (canExecuteTrailingTrade) {
-            queue.executeFor(logger, monitoringSymbol);
+            queue.execute(symbolLogger, monitoringSymbol, {
+              correlationId,
+              preprocessFn: saveCandle,
+              processFn: executeTrailingTrade
+            });
+          } else {
+            saveCandle();
           }
         });
       }

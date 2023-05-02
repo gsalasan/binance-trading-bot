@@ -11,7 +11,7 @@ describe('symbol-update-last-buy-price.test.js', () => {
   let mongoMock;
   let cacheMock;
   let PubSubMock;
-  let mockQueue;
+  let mockExecute;
 
   beforeEach(() => {
     jest.clearAllMocks().resetModules();
@@ -22,11 +22,14 @@ describe('symbol-update-last-buy-price.test.js', () => {
       send: mockWebSocketServerWebSocketSend
     };
 
-    mockQueue = {
-      executeFor: jest.fn().mockResolvedValue(true)
-    };
+    mockExecute = jest.fn((funcLogger, symbol, jobPayload) => {
+      if (!funcLogger || !symbol || !jobPayload) return false;
+      return jobPayload.preprocessFn() && jobPayload.postprocessFn();
+    });
 
-    jest.mock('../../../../cronjob/trailingTradeHelper/queue', () => mockQueue);
+    jest.mock('../../../../cronjob/trailingTradeHelper/queue', () => ({
+      execute: mockExecute
+    }));
   });
 
   describe('update symbol last buy price', () => {
@@ -35,6 +38,7 @@ describe('symbol-update-last-buy-price.test.js', () => {
         const { mongo, logger, PubSub } = require('../../../../helpers');
         mongoMock = mongo;
         loggerMock = logger;
+        loggerMock.fields = { correlationId: 'correlationId' };
         PubSubMock = PubSub;
 
         mongoMock.deleteOne = jest.fn().mockResolvedValue(true);
@@ -61,11 +65,13 @@ describe('symbol-update-last-buy-price.test.js', () => {
         );
       });
 
-      it('triggers queue.executeFor', () => {
-        expect(mockQueue.executeFor).toHaveBeenCalledWith(
-          loggerMock,
-          'BTCUSDT'
-        );
+      it('triggers queue.execute', () => {
+        expect(mockExecute).toHaveBeenCalledWith(loggerMock, 'BTCUSDT', {
+          correlationId: 'correlationId',
+          preprocessFn: expect.any(Function),
+          processFn: expect.any(Function),
+          postprocessFn: expect.any(Function)
+        });
       });
 
       it('triggers PubSub.publish', () => {
@@ -102,6 +108,7 @@ describe('symbol-update-last-buy-price.test.js', () => {
           } = require('../../../../helpers');
           mongoMock = mongo;
           loggerMock = logger;
+          loggerMock.fields = { correlationId: 'correlationId' };
           PubSubMock = PubSub;
           cacheMock = cache;
 
@@ -151,6 +158,7 @@ describe('symbol-update-last-buy-price.test.js', () => {
           beforeEach(async () => {
             const { cache, logger, PubSub } = require('../../../../helpers');
             loggerMock = logger;
+            loggerMock.fields = { correlationId: 'correlationId' };
             PubSubMock = PubSub;
             cacheMock = cache;
 
@@ -213,11 +221,13 @@ describe('symbol-update-last-buy-price.test.js', () => {
             );
           });
 
-          it('triggers queue.executeFor', () => {
-            expect(mockQueue.executeFor).toHaveBeenCalledWith(
-              loggerMock,
-              'BTCUSDT'
-            );
+          it('triggers queue.execute', () => {
+            expect(mockExecute).toHaveBeenCalledWith(loggerMock, 'BTCUSDT', {
+              correlationId: 'correlationId',
+              preprocessFn: expect.any(Function),
+              processFn: expect.any(Function),
+              postprocessFn: expect.any(Function)
+            });
           });
 
           it('triggers PubSub.publish', () => {
@@ -245,6 +255,7 @@ describe('symbol-update-last-buy-price.test.js', () => {
           beforeEach(async () => {
             const { cache, logger, PubSub } = require('../../../../helpers');
             loggerMock = logger;
+            loggerMock.fields = { correlationId: 'correlationId' };
             PubSubMock = PubSub;
             cacheMock = cache;
 
@@ -307,11 +318,13 @@ describe('symbol-update-last-buy-price.test.js', () => {
             );
           });
 
-          it('triggers queue.executeFor', () => {
-            expect(mockQueue.executeFor).toHaveBeenCalledWith(
-              loggerMock,
-              'BTCUSDT'
-            );
+          it('triggers queue.execute', () => {
+            expect(mockExecute).toHaveBeenCalledWith(loggerMock, 'BTCUSDT', {
+              correlationId: 'correlationId',
+              preprocessFn: expect.any(Function),
+              processFn: expect.any(Function),
+              postprocessFn: expect.any(Function)
+            });
           });
 
           it('triggers PubSub.publish', () => {

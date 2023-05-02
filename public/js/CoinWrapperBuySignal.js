@@ -18,20 +18,19 @@ class CoinWrapperBuySignal extends React.Component {
   }
 
   render() {
+    const { symbolInfo, sendWebSocket, isAuthenticated } = this.props;
+
     const {
       symbolInfo: {
-        symbolInfo: {
-          symbol,
-          filterPrice: { tickSize }
-        },
-        quoteAssetBalance: { asset: quoteAsset },
-        symbolConfiguration,
-        buy,
-        sell
+        symbol,
+        filterPrice: { tickSize }
       },
-      sendWebSocket,
-      isAuthenticated
-    } = this.props;
+      quoteAssetBalance: { asset: quoteAsset },
+      symbolConfiguration,
+      buy,
+      sell
+    } = symbolInfo;
+
     const { collapsed } = this.state;
 
     const precision = parseFloat(tickSize) === 1 ? 0 : tickSize.indexOf(1) - 1;
@@ -249,6 +248,44 @@ class CoinWrapperBuySignal extends React.Component {
               ''
             )}
 
+            {grid.executed && grid.executedOrder.currentGridTradeIndex === i ? (
+              <div
+                className={`coin-info-content-setting ${
+                  collapsed ? 'd-none' : ''
+                }`}>
+                <div className='coin-info-column coin-info-column-order'>
+                  <span className='coin-info-label'>- Purchased date:</span>
+                  <div className='coin-info-value'>
+                    {moment(grid.executedOrder.transactTime).format(
+                      'YYYY-MM-DD HH:mm'
+                    )}
+                  </div>
+                </div>
+                <div className='coin-info-column coin-info-column-order'>
+                  <span className='coin-info-label'>- Purchased price:</span>
+                  <div className='coin-info-value'>
+                    {parseFloat(grid.executedOrder.price).toFixed(precision)}
+                  </div>
+                </div>
+                <div className='coin-info-column coin-info-column-order'>
+                  <span className='coin-info-label'>- Purchased qty:</span>
+                  <div className='coin-info-value'>
+                    {parseFloat(grid.executedOrder.executedQty)}
+                  </div>
+                </div>
+                <div className='coin-info-column coin-info-column-order'>
+                  <span className='coin-info-label'>- Purchased amount:</span>
+                  <div className='coin-info-value'>
+                    {parseFloat(grid.executedOrder.cummulativeQuoteQty).toFixed(
+                      precision
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              ''
+            )}
+
             <div
               className={`coin-info-content-setting ${
                 collapsed ? 'd-none' : ''
@@ -300,6 +337,30 @@ class CoinWrapperBuySignal extends React.Component {
         </React.Fragment>
       );
     });
+
+    const buyNextGrid = () => {
+      const nextGridAmount = buy.nextBestBuyAmount;
+
+      return (
+        <React.Fragment key={'coin-wrapper-buy-next-grid-row-' + symbol}>
+          <div className='coin-info-column coin-info-column-price'>
+            <span className='coin-info-label'>
+              &#62; Suggested breakeven amount
+              <SymbolGridCalculator
+                symbol={symbol}
+                symbolInfo={symbolInfo}
+                isAuthenticated={isAuthenticated}
+              />
+            </span>
+            <span className='coin-info-value'>
+              {nextGridAmount !== null && nextGridAmount > 0
+                ? `${nextGridAmount.toFixed(precision)} ${quoteAsset}`
+                : 'N/A'}
+            </span>
+          </div>
+        </React.Fragment>
+      );
+    };
 
     return (
       <div className='coin-info-sub-wrapper'>
@@ -431,6 +492,7 @@ class CoinWrapperBuySignal extends React.Component {
         )}
         <div className='coin-info-column coin-info-column-price divider mb-1'></div>
         {buyGridRows}
+        {buyNextGrid()}
         {buy.processMessage ? (
           <div className='d-flex flex-column w-100'>
             <div className='coin-info-column coin-info-column-price divider'></div>

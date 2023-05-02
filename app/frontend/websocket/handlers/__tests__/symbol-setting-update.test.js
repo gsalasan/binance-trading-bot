@@ -6,7 +6,7 @@ describe('symbol-setting-update.test.js', () => {
 
   let mockLogger;
 
-  let mockQueue;
+  let mockExecute;
 
   let mockGetSymbolConfiguration;
   let mockSaveSymbolConfiguration;
@@ -20,17 +20,21 @@ describe('symbol-setting-update.test.js', () => {
       send: mockWebSocketServerWebSocketSend
     };
 
-    mockQueue = {
-      executeFor: jest.fn().mockResolvedValue(true)
-    };
+    mockExecute = jest.fn((funcLogger, symbol, jobPayload) => {
+      if (!funcLogger || !symbol || !jobPayload) return false;
+      return jobPayload.preprocessFn();
+    });
 
-    jest.mock('../../../../cronjob/trailingTradeHelper/queue', () => mockQueue);
+    jest.mock('../../../../cronjob/trailingTradeHelper/queue', () => ({
+      execute: mockExecute
+    }));
   });
 
   describe('when configuration is valid', () => {
     beforeEach(async () => {
       const { logger } = require('../../../../helpers');
       mockLogger = logger;
+      mockLogger.fields = { correlationId: 'correlationId' };
 
       mockGetSymbolConfiguration = jest.fn().mockResolvedValue({
         candles: {
@@ -266,8 +270,12 @@ describe('symbol-setting-update.test.js', () => {
       );
     });
 
-    it('triggers queue.executeFor', () => {
-      expect(mockQueue.executeFor).toHaveBeenCalledWith(mockLogger, 'BTCUSDT');
+    it('triggers queue.execute', () => {
+      expect(mockExecute).toHaveBeenCalledWith(mockLogger, 'BTCUSDT', {
+        correlationId: 'correlationId',
+        preprocessFn: expect.any(Function),
+        processFn: expect.any(Function)
+      });
     });
 
     it('triggers ws.send', () => {
